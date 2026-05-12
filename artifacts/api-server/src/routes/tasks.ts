@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, tasksTable, columnsTable } from "@workspace/db";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, and } from "drizzle-orm";
 import {
   ListTasksQueryParams,
   CreateTaskBody,
@@ -21,8 +21,13 @@ function serializeTask(t: typeof tasksTable.$inferSelect) {
 }
 
 router.get("/tasks/stats", async (req, res) => {
-  const tasks = await db.select().from(tasksTable);
-  const columns = await db.select().from(columnsTable).orderBy(asc(columnsTable.position));
+  const userId = req.session.userId!;
+  const tasks = await db.select().from(tasksTable).where(eq(tasksTable.userId, userId));
+  const columns = await db
+    .select()
+    .from(columnsTable)
+    .where(eq(columnsTable.userId, userId))
+    .orderBy(asc(columnsTable.position));
 
   const now = new Date();
   const overdue = tasks.filter(t => t.dueDate && new Date(t.dueDate) < now).length;
@@ -48,9 +53,12 @@ router.get("/tasks", async (req, res) => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const userId = req.session.userId!;
   let query = db.select().from(tasksTable).$dynamic();
   if (parsed.data.columnId !== undefined) {
-    query = query.where(eq(tasksTable.columnId, parsed.data.columnId));
+    query = query.where(and(eq(tasksTable.userId, userId), eq(tasksTable.columnId, parsed.data.columnId)));
+  } else {
+    query = query.where(eq(tasksTable.userId, userId));
   }
   const tasks = await query.orderBy(asc(tasksTable.position));
   res.json(tasks.map(serializeTask));
@@ -62,10 +70,15 @@ router.post("/tasks", async (req, res) => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const userId = req.session.userId!;
   const { title, description, columnId, priority, position, dueDate } = parsed.data;
-  const existing = await db.select().from(tasksTable).where(eq(tasksTable.columnId, columnId));
+  const existing = await db
+    .select()
+    .from(tasksTable)
+    .where(and(eq(tasksTable.userId, userId), eq(tasksTable.columnId, columnId)));
   const pos = position ?? existing.length;
   const [task] = await db.insert(tasksTable).values({
+    userId,
     title,
     description: description ?? null,
     columnId,
@@ -82,7 +95,11 @@ router.get("/tasks/:id", async (req, res) => {
     res.status(400).json({ error: "Invalid id" });
     return;
   }
-  const [task] = await db.select().from(tasksTable).where(eq(tasksTable.id, parsed.data.id));
+  const userId = req.session.userId!;
+  const [task] = await db
+    .select()
+    .from(tasksTable)
+    .where(and(eq(tasksTable.id, parsed.data.id), eq(tasksTable.userId, userId)));
   if (!task) {
     res.status(404).json({ error: "Task not found" });
     return;
@@ -101,6 +118,7 @@ router.patch("/tasks/:id", async (req, res) => {
     res.status(400).json({ error: bodyParsed.error.message });
     return;
   }
+  const userId = req.session.userId!;
   const updates: Record<string, unknown> = { updatedAt: new Date() };
   const body = bodyParsed.data;
   if (body.title !== undefined) updates.title = body.title;
@@ -110,7 +128,11 @@ router.patch("/tasks/:id", async (req, res) => {
   if (body.position !== undefined) updates.position = body.position;
   if (body.dueDate !== undefined) updates.dueDate = body.dueDate;
 
-  const [task] = await db.update(tasksTable).set(updates).where(eq(tasksTable.id, paramsParsed.data.id)).returning();
+  const [task] = await db
+    .update(tasksTable)
+    .set(updates)
+    .where(and(eq(tasksTable.id, paramsParsed.data.id), eq(tasksTable.userId, userId)))
+    .returning();
   if (!task) {
     res.status(404).json({ error: "Task not found" });
     return;
@@ -124,7 +146,11 @@ router.delete("/tasks/:id", async (req, res) => {
     res.status(400).json({ error: "Invalid id" });
     return;
   }
-  const [task] = await db.delete(tasksTable).where(eq(tasksTable.id, parsed.data.id)).returning();
+  const userId = req.session.userId!;
+  const [task] = await db
+    .delete(tasksTable)
+    .where(and(eq(tasksTable.id, parsed.data.id), eq(tasksTable.userId, userId)))
+    .returning();
   if (!task) {
     res.status(404).json({ error: "Task not found" });
     return;

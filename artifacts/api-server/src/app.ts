@@ -10,6 +10,9 @@ const PgSession = ConnectPgSimple(session);
 
 const app: Express = express();
 
+// Trust the Replit reverse proxy so secure cookies work behind HTTPS
+app.set("trust proxy", 1);
+
 app.use(
   pinoHttp({
     logger,
@@ -39,16 +42,15 @@ app.use(
     store: new PgSession({
       conString: process.env.DATABASE_URL,
       tableName: "session",
-      createTableIfMissing: true,
     }),
     secret: process.env.SESSION_SECRET ?? "dev-secret-change-me",
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: true,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      sameSite: "none",
     },
   }),
 );
