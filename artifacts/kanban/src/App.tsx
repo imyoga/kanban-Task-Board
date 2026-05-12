@@ -5,7 +5,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import BoardPage from "@/pages/BoardPage";
 import StatsPage from "@/pages/StatsPage";
+import LoginPage from "@/pages/LoginPage";
 import Layout from "@/components/Layout";
+import { useMe } from "@/hooks/useAuth";
+import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -13,15 +16,32 @@ const queryClient = new QueryClient({
   },
 });
 
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const { data: user, isLoading } = useMe();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!user) return <LoginPage />;
+  return <>{children}</>;
+}
+
 function Router() {
   return (
-    <Layout>
-      <Switch>
-        <Route path="/" component={BoardPage} />
-        <Route path="/stats" component={StatsPage} />
-        <Route component={NotFound} />
-      </Switch>
-    </Layout>
+    <AuthGate>
+      <Layout>
+        <Switch>
+          <Route path="/" component={BoardPage} />
+          <Route path="/stats" component={StatsPage} />
+          <Route component={NotFound} />
+        </Switch>
+      </Layout>
+    </AuthGate>
   );
 }
 
