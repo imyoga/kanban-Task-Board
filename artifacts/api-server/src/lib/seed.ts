@@ -4,8 +4,8 @@ import { db, usersTable, columnsTable } from "@workspace/db";
 import { eq, asc } from "drizzle-orm";
 import { logger } from "./logger";
 
-const TEST_EMAIL = "test@gmail.com";
-const TEST_PASSWORD = "test123";
+const TEST_EMAIL = "moradiyayogeshg@gmail.com";
+const TEST_PASSWORD = "Yogesh123";
 
 const DEFAULT_COLUMNS = [
   { title: "To Do", color: "#6366f1", position: 0 },
