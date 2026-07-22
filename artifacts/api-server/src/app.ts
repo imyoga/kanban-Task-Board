@@ -7,11 +7,13 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 
 const PgSession = ConnectPgSimple(session);
+const isProduction = process.env.NODE_ENV === "production";
 
 const app: Express = express();
 
-// Trust the Replit reverse proxy so secure cookies work behind HTTPS
-app.set("trust proxy", 1);
+if (isProduction) {
+  app.set("trust proxy", 1);
+}
 
 app.use(
   pinoHttp({
@@ -48,9 +50,9 @@ app.use(
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,
+      secure: isProduction,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      sameSite: "none",
+      sameSite: isProduction ? "none" : "lax",
     },
   }),
 );
