@@ -3,15 +3,10 @@ import pg from "pg";
 import { db, usersTable, columnsTable } from "@workspace/db";
 import { eq, asc } from "drizzle-orm";
 import { logger } from "./logger";
+import { DEFAULT_COLUMNS } from "./defaultColumns";
 
 const TEST_EMAIL = "moradiyayogeshg@gmail.com";
 const TEST_PASSWORD = "Yogesh123";
-
-const DEFAULT_COLUMNS = [
-  { title: "To Do", color: "#6366f1", position: 0 },
-  { title: "In Progress", color: "#f59e0b", position: 1 },
-  { title: "Done", color: "#10b981", position: 2 },
-];
 
 async function ensureSessionTable() {
   const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
@@ -56,7 +51,7 @@ export async function seedIfNeeded() {
   if (existing.length === 0) {
     logger.info("Seeding default columns for test user...");
     await db.insert(columnsTable).values(
-      DEFAULT_COLUMNS.map(c => ({ ...c, userId: user.id }))
+      DEFAULT_COLUMNS.map((c) => ({ ...c, userId: user.id })),
     );
     logger.info("Default columns created");
   }
