@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm run build && cross-env NODE_ENV=development node --import ./load-env.mjs --enable-source-maps ./dist/index.mjs",
+    "dev:watch": "nodemon --watch src --watch ../../lib --ext ts --ignore ../../lib/**/dist/** --exec \"pnpm run build && node --import ./load-env.mjs --enable-source-maps ./dist/index.mjs\"",
     "build": "node ./build.mjs",
     "start": "node --import ./load-env.mjs --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"

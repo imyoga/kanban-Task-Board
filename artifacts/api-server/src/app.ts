@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
@@ -8,6 +11,9 @@ import { logger } from "./lib/logger";
 
 const PgSession = ConnectPgSimple(session);
 const isProduction = process.env.NODE_ENV === "production";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const frontendDist = path.resolve(__dirname, "../../kanban/dist/public");
 
 const app: Express = express();
 
@@ -58,5 +64,13 @@ app.use(
 );
 
 app.use("/api", router);
+
+app.use(express.static(frontendDist));
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api")) return next();
+  const index = path.join(frontendDist, "index.html");
+  if (fs.existsSync(index)) return res.sendFile(index);
+  next();
+});
 
 export default app;
