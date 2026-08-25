@@ -35,6 +35,70 @@ import { useBoardIdFromRoute } from "@/hooks/useBoardId";
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
 
+function normalizeTasks(tasks: Task[]) {
+  return tasks
+    .map((task) => ({ ...task }))
+    .sort((left, right) =>
+      left.columnId === right.columnId
+        ? left.position - right.position || left.id - right.id
+        : left.columnId - right.columnId || left.position - right.position || left.id - right.id,
+    );
+}
+
+function sameTaskLayout(left: Task[], right: Task[]) {
+  if (left.length !== right.length) return false;
+
+  for (let index = 0; index < left.length; index += 1) {
+    if (
+      left[index].id !== right[index].id ||
+      left[index].columnId !== right[index].columnId ||
+      left[index].position !== right[index].position
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function projectTaskMove(
+  taskList: Task[],
+  activeTaskId: number,
+  targetColumnId: number,
+  targetTaskId?: number,
+) {
+  const sourceTask = taskList.find((task) => task.id === activeTaskId);
+  if (!sourceTask) return taskList;
+
+  const remaining = taskList.filter((task) => task.id !== activeTaskId);
+  const sourceTasks = remaining
+    .filter((task) => task.columnId === sourceTask.columnId)
+    .sort((left, right) => left.position - right.position || left.id - right.id);
+  const targetTasks = remaining
+    .filter((task) => task.columnId === targetColumnId)
+    .sort((left, right) => left.position - right.position || left.id - right.id);
+
+  const insertIndex =
+    targetTaskId == null
+      ? targetTasks.length
+      : Math.max(
+          0,
+          targetTasks.findIndex((task) => task.id === targetTaskId),
+        );
+
+  const movedTask = { ...sourceTask, columnId: targetColumnId };
+  const nextSourceTasks = sourceTasks.map((task, index) => ({ ...task, position: index }));
+  const nextTargetTasks = [...targetTasks];
+  nextTargetTasks.splice(insertIndex, 0, movedTask);
+
+  const reindexedTargetTasks = nextTargetTasks.map((task, index) => ({ ...task, position: index }));
+  const untouchedTasks = remaining.filter(
+    (task) => task.columnId !== sourceTask.columnId && task.columnId !== targetColumnId,
+  );
+
+  return normalizeTasks([...untouchedTasks, ...nextSourceTasks, ...reindexedTargetTasks]);
+}
+
 export default function BoardPage() {
   const boardId = useBoardIdFromRoute()!;
   const [, setLocation] = useLocation();
@@ -58,17 +122,17 @@ export default function BoardPage() {
   const [defaultColumnId, setDefaultColumnId] = useState<number | undefined>();
 
   const displayTasks = localTasks ?? tasks;
-  const displayColumns = (localColumns ?? columns).sort((a, b) => a.position - b.position);
+  const displayColumns = [...(localColumns ?? columns)].sort((a, b) => a.position - b.position);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
-  function getTasksForColumn(columnId: number) {
+  const getTasksForColumn = useCallback((columnId: number) => {
     return displayTasks
-      .filter(t => t.columnId === columnId)
-      .sort((a, b) => a.position - b.position);
-  }
+      .filter((task) => task.columnId === columnId)
+      .sort((left, right) => left.position - right.position || left.id - right.id);
+  }, [displayTasks]);
 
   function resolveTargetColumnId(over: DragOverEvent["over"] | DragEndEvent["over"]): number | undefined {
     if (!over) return undefined;
@@ -98,23 +162,15 @@ export default function BoardPage() {
     const targetColumnId = resolveTargetColumnId(over);
     if (targetColumnId === undefined || targetColumnId === activeTask.columnId) return;
 
-    setLocalTasks(prev => {
+    setLocalTasks((prev) => {
       const base = prev ?? tasks;
-      const targetTasks = base
-        .filter(t => t.columnId === targetColumnId)
-        .sort((a, b) => a.position - b.position);
-      const insertIndex = over.data.current?.type === "task"
-        ? targetTasks.findIndex(t => t.id === (over.data.current!.task as Task).id)
-        : targetTasks.length;
-      const moved = { ...activeTask, columnId: targetColumnId, position: insertIndex >= 0 ? insertIndex : targetTasks.length };
-      const others = base.filter(t => t.id !== activeTask.id);
-      const updatedTarget = [...targetTasks];
-      updatedTarget.splice(insertIndex >= 0 ? insertIndex : updatedTarget.length, 0, moved);
-      const reindexed = updatedTarget.map((t, i) => ({ ...t, position: i }));
-      return [
-        ...others.filter(t => t.columnId !== targetColumnId),
-        ...reindexed,
-      ];
+      const projected = projectTaskMove(
+        base,
+        activeTask.id,
+        targetColumnId,
+        over.data.current?.type === "task" ? (over.data.current.task as Task).id : undefined,
+      );
+      return sameTaskLayout(base, projected) ? prev : projected;
     });
   }
 
@@ -186,48 +242,20 @@ export default function BoardPage() {
     const overIsTask = over.data.current?.type === "task";
     const overTask = overIsTask ? (over.data.current!.task as Task) : undefined;
 
-    let reordered = [...current];
-    const movedInCurrent = reordered.find(t => t.id === activeTaskItem.id);
-    if (!movedInCurrent) {
+    const reordered = projectTaskMove(
+      current,
+      activeTaskItem.id,
+      targetColumnId,
+      overIsTask ? overTask?.id : undefined,
+    );
+
+    const finalTask = reordered.find((task) => task.id === activeTaskItem.id);
+    if (!finalTask) {
       setLocalTasks(null);
       return;
     }
 
-    if (overIsTask && overTask && overTask.columnId === movedInCurrent.columnId) {
-      const colTasks = reordered
-        .filter(t => t.columnId === movedInCurrent.columnId)
-        .sort((a, b) => a.position - b.position);
-      const oldIndex = colTasks.findIndex(t => t.id === movedInCurrent.id);
-      const newIndex = colTasks.findIndex(t => t.id === overTask.id);
-      if (oldIndex !== newIndex) {
-        const sorted = arrayMove(colTasks, oldIndex, newIndex).map((t, i) => ({ ...t, position: i }));
-        reordered = reordered.map(t => sorted.find(s => s.id === t.id) ?? t);
-      }
-    } else if (targetColumnId !== movedInCurrent.columnId) {
-      const sourceTasks = reordered
-        .filter(t => t.columnId === movedInCurrent.columnId && t.id !== movedInCurrent.id)
-        .sort((a, b) => a.position - b.position)
-        .map((t, i) => ({ ...t, position: i }));
-      const targetTasks = reordered
-        .filter(t => t.columnId === targetColumnId && t.id !== movedInCurrent.id)
-        .sort((a, b) => a.position - b.position);
-      const insertIndex = overIsTask
-        ? targetTasks.findIndex(t => t.id === overTask!.id)
-        : targetTasks.length;
-      const moved = { ...movedInCurrent, columnId: targetColumnId, position: insertIndex >= 0 ? insertIndex : targetTasks.length };
-      const updatedTarget = [...targetTasks];
-      updatedTarget.splice(insertIndex >= 0 ? insertIndex : updatedTarget.length, 0, moved);
-      const reindexedTarget = updatedTarget.map((t, i) => ({ ...t, position: i }));
-      reordered = [
-        ...reordered.filter(t => t.columnId !== movedInCurrent.columnId && t.columnId !== targetColumnId),
-        ...sourceTasks,
-        ...reindexedTarget,
-      ];
-    }
-
     setLocalTasks(reordered);
-
-    const finalTask = reordered.find(t => t.id === activeTaskItem.id)!;
 
     updateTask.mutate(
       { id: activeTaskItem.id, data: { columnId: finalTask.columnId, position: finalTask.position } },
@@ -245,11 +273,11 @@ export default function BoardPage() {
     );
   }
 
-  function handleAddTask(columnId: number) {
+  const handleAddTask = useCallback((columnId: number) => {
     setDefaultColumnId(columnId);
     setEditTask(null);
     setTaskDialogOpen(true);
-  }
+  }, []);
 
   const handleEditTask = useCallback((task: Task) => {
     setEditTask(task);

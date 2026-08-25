@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Calendar, GripVertical, Trash2, Pencil } from "lucide-react";
@@ -29,7 +30,7 @@ function formatDate(dateStr: string): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export default function TaskCard({ task, onEdit, onDelete }: Props) {
+function TaskCard({ task, onEdit, onDelete }: Props) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: taskDndId(task.id),
     data: { type: "task", task },
@@ -122,3 +123,27 @@ export default function TaskCard({ task, onEdit, onDelete }: Props) {
     </div>
   );
 }
+
+function areTasksEqual(prev: Task, next: Task) {
+  return (
+    prev.id === next.id &&
+    prev.title === next.title &&
+    prev.description === next.description &&
+    prev.columnId === next.columnId &&
+    prev.priority === next.priority &&
+    prev.position === next.position &&
+    prev.dueDate === next.dueDate &&
+    prev.assigneeId === next.assigneeId &&
+    prev.assignee?.id === next.assignee?.id &&
+    prev.assignee?.firstName === next.assignee?.firstName &&
+    prev.assignee?.lastName === next.assignee?.lastName
+  );
+}
+
+export default memo(TaskCard, (prev, next) => {
+  return (
+    prev.onEdit === next.onEdit &&
+    prev.onDelete === next.onDelete &&
+    areTasksEqual(prev.task, next.task)
+  );
+});

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useCreateTask,
@@ -56,7 +56,22 @@ export default function TaskDialog({ open, onOpenChange, boardId, columns, defau
   const updateTask = useUpdateTask();
 
   const isEdit = !!editTask;
-  const teamMembers = boardTeam?.members ?? [];
+  const uniqueColumns = useMemo(
+    () =>
+      columns.filter(
+        (column, index, list) =>
+          list.findIndex((candidate) => candidate.id === column.id) === index,
+      ),
+    [columns],
+  );
+  const teamMembers = useMemo(
+    () =>
+      (boardTeam?.members ?? []).filter(
+        (member, index, list) =>
+          list.findIndex((candidate) => candidate.userId === member.userId) === index,
+      ),
+    [boardTeam?.members],
+  );
 
   useEffect(() => {
     if (editTask) {
@@ -69,12 +84,12 @@ export default function TaskDialog({ open, onOpenChange, boardId, columns, defau
     } else {
       setTitle("");
       setDescription("");
-      setColumnId(defaultColumnId ?? columns[0]?.id ?? 0);
+      setColumnId(defaultColumnId ?? uniqueColumns[0]?.id ?? 0);
       setPriority("medium");
       setDueDate("");
       setAssigneeId("none");
     }
-  }, [editTask, open, defaultColumnId, columns]);
+  }, [editTask?.id, open, defaultColumnId, uniqueColumns]);
 
   function invalidate() {
     qc.invalidateQueries({ queryKey: getListTasksQueryKey({ boardId }) });
@@ -169,7 +184,7 @@ export default function TaskDialog({ open, onOpenChange, boardId, columns, defau
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {columns.map(col => (
+                  {uniqueColumns.map(col => (
                     <SelectItem key={col.id} value={String(col.id)}>
                       {col.title}
                     </SelectItem>

@@ -8,7 +8,7 @@ import {
   DeleteColumnParams,
 } from "@workspace/api-zod";
 import { getBoardAccess } from "../lib/boardAccess";
-import { seedDefaultColumnsForBoard } from "../lib/boards";
+import { normalizeDefaultColumnsForBoard, seedDefaultColumnsForBoard } from "../lib/boards";
 
 const router = Router();
 
@@ -28,6 +28,7 @@ router.get("/columns", async (req, res) => {
   }
 
   await seedDefaultColumnsForBoard(boardId, access.board.ownerId);
+  await normalizeDefaultColumnsForBoard(boardId);
 
   const columns = await db
     .select()

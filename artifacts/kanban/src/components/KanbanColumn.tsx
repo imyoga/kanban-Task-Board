@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -33,7 +33,7 @@ interface Props {
   onDeleteTask: (id: number) => void;
 }
 
-export default function KanbanColumn({ column, boardId, tasks, onAddTask, onEditTask, onDeleteTask }: Props) {
+function KanbanColumn({ column, boardId, tasks, onAddTask, onEditTask, onDeleteTask }: Props) {
   const {
     attributes,
     listeners,
@@ -197,3 +197,44 @@ export default function KanbanColumn({ column, boardId, tasks, onAddTask, onEdit
     </div>
   );
 }
+
+function areTaskListsEqual(prevTasks: Task[], nextTasks: Task[]) {
+  if (prevTasks.length !== nextTasks.length) return false;
+
+  for (let index = 0; index < prevTasks.length; index += 1) {
+    const prevTask = prevTasks[index];
+    const nextTask = nextTasks[index];
+
+    if (
+      prevTask.id !== nextTask.id ||
+      prevTask.title !== nextTask.title ||
+      prevTask.description !== nextTask.description ||
+      prevTask.columnId !== nextTask.columnId ||
+      prevTask.priority !== nextTask.priority ||
+      prevTask.position !== nextTask.position ||
+      prevTask.dueDate !== nextTask.dueDate ||
+      prevTask.assigneeId !== nextTask.assigneeId ||
+      prevTask.assignee?.id !== nextTask.assignee?.id ||
+      prevTask.assignee?.firstName !== nextTask.assignee?.firstName ||
+      prevTask.assignee?.lastName !== nextTask.assignee?.lastName
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export default memo(KanbanColumn, (prev, next) => {
+  return (
+    prev.boardId === next.boardId &&
+    prev.onAddTask === next.onAddTask &&
+    prev.onEditTask === next.onEditTask &&
+    prev.onDeleteTask === next.onDeleteTask &&
+    prev.column.id === next.column.id &&
+    prev.column.title === next.column.title &&
+    prev.column.color === next.column.color &&
+    prev.column.position === next.column.position &&
+    areTaskListsEqual(prev.tasks, next.tasks)
+  );
+});

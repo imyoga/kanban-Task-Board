@@ -15,6 +15,7 @@ import {
   getListTeamMembersQueryKey,
   getListTeamInvitesQueryKey,
   getListBoardsQueryKey,
+  getGetBoardTeamQueryKey,
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,10 +82,22 @@ function TeamCard({ teamId }: { teamId: number }) {
 
   function handleBoardChange(value: string) {
     const boardId = value === "none" ? null : Number(value);
+    const previousBoardId = team!.boardId;
     updateTeam.mutate(
       { id: teamId, data: { boardId } },
       {
-        onSuccess: () => {
+        onSuccess: (updatedTeam) => {
+          qc.setQueryData(getListTeamsQueryKey(), (current: typeof teams | undefined) =>
+            current?.map((currentTeam) => (currentTeam.id === teamId ? updatedTeam : currentTeam)) ?? [],
+          );
+
+          if (previousBoardId != null) {
+            qc.invalidateQueries({ queryKey: getGetBoardTeamQueryKey(previousBoardId) });
+          }
+          if (boardId != null) {
+            qc.invalidateQueries({ queryKey: getGetBoardTeamQueryKey(boardId) });
+          }
+
           invalidateTeam();
           toast({ title: boardId ? "Board linked" : "Board unlinked" });
         },
