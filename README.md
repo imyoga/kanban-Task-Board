@@ -30,15 +30,15 @@ pnpm install
 pnpm db:push
 ```
 
-This runs Drizzle push in CI mode with `--force` — no rename/create prompts.
+This runs Drizzle push in CI mode with `--force` and skips interactive rename prompts.
 
 ## Run locally
 
 ```bash
-# Terminal 1 — API (http://localhost:5000)
+# Terminal 1 - API (http://localhost:5000 by default, or your .env PORT)
 pnpm dev:api
 
-# Terminal 2 — Web (http://localhost:5173, proxies /api → API)
+# Terminal 2 - Web (http://localhost:5173, proxies /api -> API)
 pnpm dev:web
 ```
 
@@ -46,7 +46,7 @@ pnpm dev:web
 
 | Command | Description |
 |---|---|
-| `pnpm dev:api` | Build and start the API server |
+| `pnpm dev:api` | Start the API server in watch mode |
 | `pnpm dev:web` | Start the Vite frontend |
 | `pnpm db:push` | Apply Drizzle schema to Postgres (non-interactive, forced) |
 | `pnpm typecheck` | Typecheck all packages |
@@ -57,7 +57,7 @@ pnpm dev:web
 
 See `.env.example`. Main variables:
 
-- `DATABASE_URL` — Postgres connection string
-- `SESSION_SECRET` — cookie signing secret
-- `API_PORT` / `PORT` — API port (default `5000`)
-- `BASE_PATH` — frontend base path (default `/`)
+- `DATABASE_URL` - Postgres connection string
+- `SESSION_SECRET` - Cookie signing secret
+- `PORT` - API port (default `5000`)
+- `BASE_PATH` - Frontend base path (default `/`)

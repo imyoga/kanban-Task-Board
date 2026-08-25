@@ -1,41 +1,50 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 
-const port = Number(process.env.PORT ?? 5173);
-const apiPort = Number(process.env.API_PORT ?? 5000);
-const basePath = process.env.BASE_PATH ?? "/";
+const frontendPort = 5173;
 
-export default defineConfig({
-  base: basePath,
-  envDir: path.resolve(import.meta.dirname, "../.."),
-  plugins: [react(), tailwindcss()],
-  resolve: {
-    alias: {
-      "@": path.resolve(import.meta.dirname, "src"),
-      "@assets": path.resolve(import.meta.dirname, "..", "..", "attached_assets"),
+export default defineConfig(({ mode }) => {
+  const envDir = path.resolve(import.meta.dirname, "../..");
+  const env = loadEnv(mode, envDir, "");
+  const apiPort = Number(env.PORT ?? 5000);
+  const basePath = env.BASE_PATH ?? "/";
+
+  if (Number.isNaN(apiPort) || apiPort <= 0) {
+    throw new Error(`Invalid PORT value: "${env.PORT}"`);
+  }
+
+  return {
+    base: basePath,
+    envDir,
+    plugins: [react(), tailwindcss()],
+    resolve: {
+      alias: {
+        "@": path.resolve(import.meta.dirname, "src"),
+        "@assets": path.resolve(import.meta.dirname, "..", "..", "attached_assets"),
+      },
+      dedupe: ["react", "react-dom"],
     },
-    dedupe: ["react", "react-dom"],
-  },
-  root: path.resolve(import.meta.dirname),
-  build: {
-    outDir: path.resolve(import.meta.dirname, "dist/public"),
-    emptyOutDir: true,
-  },
-  server: {
-    port,
-    strictPort: true,
-    host: "0.0.0.0",
-    proxy: {
-      "/api": {
-        target: `http://localhost:${apiPort}`,
-        changeOrigin: true,
+    root: path.resolve(import.meta.dirname),
+    build: {
+      outDir: path.resolve(import.meta.dirname, "dist/public"),
+      emptyOutDir: true,
+    },
+    server: {
+      port: frontendPort,
+      strictPort: true,
+      host: "0.0.0.0",
+      proxy: {
+        "/api": {
+          target: `http://127.0.0.1:${apiPort}`,
+          changeOrigin: true,
+        },
       },
     },
-  },
-  preview: {
-    port,
-    host: "0.0.0.0",
-  },
+    preview: {
+      port: frontendPort,
+      host: "0.0.0.0",
+    },
+  };
 });
