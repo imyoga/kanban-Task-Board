@@ -30,12 +30,13 @@ import { useToast } from "@/hooks/use-toast";
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  boardId: number;
   columns: Column[];
   defaultColumnId?: number;
   editTask?: Task | null;
 }
 
-export default function TaskDialog({ open, onOpenChange, columns, defaultColumnId, editTask }: Props) {
+export default function TaskDialog({ open, onOpenChange, boardId, columns, defaultColumnId, editTask }: Props) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [columnId, setColumnId] = useState<number>(defaultColumnId ?? columns[0]?.id ?? 0);
@@ -66,8 +67,8 @@ export default function TaskDialog({ open, onOpenChange, columns, defaultColumnI
   }, [editTask, open, defaultColumnId, columns]);
 
   function invalidate() {
-    qc.invalidateQueries({ queryKey: getListTasksQueryKey() });
-    qc.invalidateQueries({ queryKey: getGetTaskStatsQueryKey() });
+    qc.invalidateQueries({ queryKey: getListTasksQueryKey({ boardId }) });
+    qc.invalidateQueries({ queryKey: getGetTaskStatsQueryKey({ boardId }) });
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -96,7 +97,7 @@ export default function TaskDialog({ open, onOpenChange, columns, defaultColumnI
       );
     } else {
       createTask.mutate(
-        { data: payload },
+        { data: { ...payload, boardId } },
         {
           onSuccess: () => {
             invalidate();

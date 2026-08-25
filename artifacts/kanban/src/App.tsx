@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import BoardPage from "@/pages/BoardPage";
 import StatsPage from "@/pages/StatsPage";
+import HomeRedirect from "@/pages/HomeRedirect";
 import LoginPage from "@/pages/LoginPage";
 import Layout from "@/components/Layout";
 import { useMe } from "@/hooks/useAuth";
@@ -36,8 +37,9 @@ function Router() {
     <AuthGate>
       <Layout>
         <Switch>
-          <Route path="/" component={BoardPage} />
-          <Route path="/stats" component={StatsPage} />
+          <Route path="/" component={HomeRedirect} />
+          <Route path="/boards/:boardId" component={BoardPage} />
+          <Route path="/boards/:boardId/stats" component={StatsPage} />
           <Route component={NotFound} />
         </Switch>
       </Layout>

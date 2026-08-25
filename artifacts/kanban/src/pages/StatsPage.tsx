@@ -1,6 +1,7 @@
 import { useGetTaskStats, useListColumns } from "@workspace/api-client-react";
 import { Loader2, AlertCircle, CheckCircle2, ListTodo, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useBoardIdFromRoute } from "@/hooks/useBoardId";
 
 const PRIORITY_COLORS = {
   high: { bar: "bg-red-500", text: "text-red-600", bg: "bg-red-50" },
@@ -9,8 +10,9 @@ const PRIORITY_COLORS = {
 };
 
 export default function StatsPage() {
-  const { data: stats, isLoading } = useGetTaskStats();
-  const { data: columns = [] } = useListColumns();
+  const boardId = useBoardIdFromRoute()!;
+  const { data: stats, isLoading } = useGetTaskStats({ boardId });
+  const { data: columns = [] } = useListColumns({ boardId });
 
   if (isLoading) {
     return (
@@ -37,7 +39,6 @@ export default function StatsPage() {
       </div>
 
       <div className="px-6 py-6 space-y-8 max-w-3xl">
-        {/* Summary cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <StatCard
             label="Total tasks"
@@ -65,7 +66,6 @@ export default function StatsPage() {
           />
         </div>
 
-        {/* By column */}
         <section>
           <h3 className="text-sm font-semibold text-foreground mb-3">Tasks by column</h3>
           <div className="space-y-3">
@@ -91,7 +91,6 @@ export default function StatsPage() {
           </div>
         </section>
 
-        {/* By priority */}
         <section>
           <h3 className="text-sm font-semibold text-foreground mb-3">Tasks by priority</h3>
           <div className="grid grid-cols-3 gap-3">

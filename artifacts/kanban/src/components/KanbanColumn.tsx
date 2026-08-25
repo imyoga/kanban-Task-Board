@@ -26,13 +26,14 @@ import { columnDndId, taskDndId } from "@/lib/dnd";
 
 interface Props {
   column: Column;
+  boardId: number;
   tasks: Task[];
   onAddTask: (columnId: number) => void;
   onEditTask: (task: Task) => void;
   onDeleteTask: (id: number) => void;
 }
 
-export default function KanbanColumn({ column, tasks, onAddTask, onEditTask, onDeleteTask }: Props) {
+export default function KanbanColumn({ column, boardId, tasks, onAddTask, onEditTask, onDeleteTask }: Props) {
   const {
     attributes,
     listeners,
@@ -65,9 +66,9 @@ export default function KanbanColumn({ column, tasks, onAddTask, onEditTask, onD
       { id: column.id },
       {
         onSuccess: () => {
-          qc.invalidateQueries({ queryKey: getListColumnsQueryKey() });
-          qc.invalidateQueries({ queryKey: getListTasksQueryKey() });
-          qc.invalidateQueries({ queryKey: getGetTaskStatsQueryKey() });
+          qc.invalidateQueries({ queryKey: getListColumnsQueryKey({ boardId }) });
+          qc.invalidateQueries({ queryKey: getListTasksQueryKey({ boardId }) });
+          qc.invalidateQueries({ queryKey: getGetTaskStatsQueryKey({ boardId }) });
           toast({ title: "Column deleted" });
         },
         onError: () => toast({ title: "Failed to delete column", variant: "destructive" }),
@@ -85,7 +86,7 @@ export default function KanbanColumn({ column, tasks, onAddTask, onEditTask, onD
       { id: column.id, data: { title: titleValue.trim() } },
       {
         onSuccess: () => {
-          qc.invalidateQueries({ queryKey: getListColumnsQueryKey() });
+          qc.invalidateQueries({ queryKey: getListColumnsQueryKey({ boardId }) });
           setEditingTitle(false);
         },
         onError: () => {

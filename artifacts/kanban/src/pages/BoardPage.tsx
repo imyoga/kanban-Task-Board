@@ -12,6 +12,7 @@ import {
 import { arrayMove, SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  useListBoards,
   useListColumns,
   useListTasks,
   useUpdateTask,
@@ -26,13 +27,19 @@ import KanbanColumn from "@/components/KanbanColumn";
 import TaskCard from "@/components/TaskCard";
 import TaskDialog from "@/components/TaskDialog";
 import AddColumnDialog from "@/components/AddColumnDialog";
-import { Plus, Loader2 } from "lucide-react";
+import BoardSettingsDialog from "@/components/BoardSettingsDialog";
+import { Plus, Loader2, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getTaskFromDndActive, getColumnFromDndActive, columnDndId } from "@/lib/dnd";
+import { useBoardIdFromRoute } from "@/hooks/useBoardId";
+import { Badge } from "@/components/ui/badge";
 
 export default function BoardPage() {
-  const { data: columns = [], isLoading: colsLoading } = useListColumns();
-  const { data: tasks = [], isLoading: tasksLoading } = useListTasks();
+  const boardId = useBoardIdFromRoute()!;
+  const { data: boards = [] } = useListBoards();
+  const board = boards.find(b => b.id === boardId);
+  const { data: columns = [], isLoading: colsLoading } = useListColumns({ boardId });
+  const { data: tasks = [], isLoading: tasksLoading } = useListTasks({ boardId });
   const qc = useQueryClient();
   const { toast } = useToast();
   const updateTask = useUpdateTask();
@@ -44,6 +51,7 @@ export default function BoardPage() {
   const [localColumns, setLocalColumns] = useState<Column[] | null>(null);
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
   const [addColumnOpen, setAddColumnOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [defaultColumnId, setDefaultColumnId] = useState<number | undefined>();
 
@@ -150,7 +158,7 @@ export default function BoardPage() {
             onSuccess: () => {
               completed += 1;
               if (completed === changed.length && !failed) {
-                qc.invalidateQueries({ queryKey: getListColumnsQueryKey() });
+                qc.invalidateQueries({ queryKey: getListColumnsQueryKey({ boardId }) });
                 setLocalColumns(null);
               }
             },
@@ -223,8 +231,8 @@ export default function BoardPage() {
       { id: activeTaskItem.id, data: { columnId: finalTask.columnId, position: finalTask.position } },
       {
         onSuccess: () => {
-          qc.invalidateQueries({ queryKey: getListTasksQueryKey() });
-          qc.invalidateQueries({ queryKey: getGetTaskStatsQueryKey() });
+          qc.invalidateQueries({ queryKey: getListTasksQueryKey({ boardId }) });
+          qc.invalidateQueries({ queryKey: getGetTaskStatsQueryKey({ boardId }) });
           setLocalTasks(null);
         },
         onError: () => {
@@ -252,8 +260,8 @@ export default function BoardPage() {
       { id },
       {
         onSuccess: () => {
-          qc.invalidateQueries({ queryKey: getListTasksQueryKey() });
-          qc.invalidateQueries({ queryKey: getGetTaskStatsQueryKey() });
+          qc.invalidateQueries({ queryKey: getListTasksQueryKey({ boardId }) });
+          qc.invalidateQueries({ queryKey: getGetTaskStatsQueryKey({ boardId }) });
           toast({ title: "Task deleted" });
         },
         onError: () => toast({ title: "Failed to delete task", variant: "destructive" }),
@@ -273,16 +281,32 @@ export default function BoardPage() {
     <>
       <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-background">
         <div>
-          <h2 className="text-base font-semibold text-foreground">Board</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-semibold text-foreground">{board?.name ?? "Board"}</h2>
+            {board?.isShared && (
+              <Badge variant="secondary" className="text-[10px]">Shared</Badge>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground mt-0.5">{tasks.length} task{tasks.length !== 1 ? "s" : ""} across {displayColumns.length} column{displayColumns.length !== 1 ? "s" : ""}</p>
         </div>
-        <button
-          onClick={() => { setEditTask(null); setDefaultColumnId(displayColumns[0]?.id); setTaskDialogOpen(true); }}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Add task
-        </button>
+        <div className="flex items-center gap-2">
+          {board?.isOwner && (
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-border text-sm font-medium rounded-lg hover:bg-muted transition-colors"
+              aria-label="Board settings"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+          )}
+          <button
+            onClick={() => { setEditTask(null); setDefaultColumnId(displayColumns[0]?.id); setTaskDialogOpen(true); }}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add task
+          </button>
+        </div>
       </div>
 
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
@@ -293,6 +317,7 @@ export default function BoardPage() {
                 <KanbanColumn
                   key={col.id}
                   column={col}
+                  boardId={boardId}
                   tasks={getTasksForColumn(col.id)}
                   onAddTask={handleAddTask}
                   onEditTask={handleEditTask}
@@ -323,11 +348,19 @@ export default function BoardPage() {
       <TaskDialog
         open={taskDialogOpen}
         onOpenChange={setTaskDialogOpen}
+        boardId={boardId}
         columns={displayColumns}
         defaultColumnId={defaultColumnId}
         editTask={editTask}
       />
-      <AddColumnDialog open={addColumnOpen} onOpenChange={setAddColumnOpen} />
+      <AddColumnDialog open={addColumnOpen} onOpenChange={setAddColumnOpen} boardId={boardId} />
+      {board && (
+        <BoardSettingsDialog
+          board={board}
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+        />
+      )}
     </>
   );
 }

@@ -21,9 +21,10 @@ const PRESET_COLORS = [
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  boardId: number;
 }
 
-export default function AddColumnDialog({ open, onOpenChange }: Props) {
+export default function AddColumnDialog({ open, onOpenChange, boardId }: Props) {
   const [title, setTitle] = useState("");
   const [color, setColor] = useState(PRESET_COLORS[0]);
   const qc = useQueryClient();
@@ -34,10 +35,10 @@ export default function AddColumnDialog({ open, onOpenChange }: Props) {
     e.preventDefault();
     if (!title.trim()) return;
     createColumn.mutate(
-      { data: { title: title.trim(), color } },
+      { data: { title: title.trim(), color, boardId } },
       {
         onSuccess: () => {
-          qc.invalidateQueries({ queryKey: getListColumnsQueryKey() });
+          qc.invalidateQueries({ queryKey: getListColumnsQueryKey({ boardId }) });
           toast({ title: "Column added" });
           setTitle("");
           onOpenChange(false);
