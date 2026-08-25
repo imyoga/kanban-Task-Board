@@ -12,4 +12,15 @@ export default defineConfig({
   dbCredentials: {
     url: process.env.DATABASE_URL,
   },
+  // Ignore express-session's `session` table so push does not prompt to rename it.
+  tablesFilter: [
+    "users",
+    "boards",
+    "board_members",
+    "columns",
+    "tasks",
+    "teams",
+    "team_members",
+    "team_invites",
+  ],
 });

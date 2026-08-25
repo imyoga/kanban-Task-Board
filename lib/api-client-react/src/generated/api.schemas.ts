@@ -70,6 +70,12 @@ export const TaskPriority = {
   high: "high",
 } as const;
 
+export interface Assignee {
+  id: number;
+  firstName: string;
+  lastName: string;
+}
+
 export interface Task {
   id: number;
   title: string;
@@ -80,6 +86,9 @@ export interface Task {
   position: number;
   /** @nullable */
   dueDate?: string | null;
+  /** @nullable */
+  assigneeId?: number | null;
+  assignee?: Assignee | null;
   createdAt: string;
   updatedAt?: string;
 }
@@ -102,6 +111,7 @@ export interface TaskInput {
   priority?: TaskInputPriority;
   position?: number;
   dueDate?: string;
+  assigneeId?: number;
 }
 
 export type TaskUpdatePriority =
@@ -123,6 +133,8 @@ export interface TaskUpdate {
   position?: number;
   /** @nullable */
   dueDate?: string | null;
+  /** @nullable */
+  assigneeId?: number | null;
 }
 
 export type TaskStatsByColumnItem = {
@@ -142,6 +154,69 @@ export interface TaskStats {
   overdue: number;
   byColumn: TaskStatsByColumnItem[];
   byPriority: TaskStatsByPriority;
+}
+
+export interface Team {
+  id: number;
+  name: string;
+  /** @nullable */
+  boardId?: number | null;
+  /** @nullable */
+  boardName?: string | null;
+  isOwner: boolean;
+  createdAt: string;
+}
+
+export interface TeamInput {
+  /** @minLength 1 */
+  name: string;
+}
+
+export interface TeamUpdate {
+  /** @minLength 1 */
+  name?: string;
+  /** @nullable */
+  boardId?: number | null;
+}
+
+export interface TeamMember {
+  userId: number;
+  email: string;
+  firstName: string;
+  lastName: string;
+  isOwner: boolean;
+}
+
+export interface TeamInvite {
+  id: number;
+  email: string;
+  createdAt: string;
+}
+
+export interface TeamInviteInput {
+  email: string;
+}
+
+export type TeamInviteResult =
+  | {
+      type: "member";
+      userId: number;
+      email: string;
+      firstName: string;
+      lastName: string;
+      isOwner: boolean;
+    }
+  | {
+      type: "invite";
+      id: number;
+      email: string;
+      createdAt: string;
+    };
+
+export interface BoardTeam {
+  id: number;
+  name: string;
+  members: TeamMember[];
 }
 
 export type ListColumnsParams = {

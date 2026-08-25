@@ -3,11 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   useUpdateBoard,
   useDeleteBoard,
-  useListBoardMembers,
-  useAddBoardMember,
-  useRemoveBoardMember,
   getListBoardsQueryKey,
-  getListBoardMembersQueryKey,
 } from "@workspace/api-client-react";
 import type { Board } from "@workspace/api-client-react";
 import {
@@ -21,7 +17,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { X } from "lucide-react";
 
 interface Props {
   board: Board;
@@ -30,34 +25,16 @@ interface Props {
   onDeleted?: () => void;
 }
 
-function getShareErrorMessage(error: unknown): string {
-  if (error && typeof error === "object" && "data" in error) {
-    const data = (error as { data?: { error?: string } }).data;
-    if (data?.error) return data.error;
-  }
-  return "Failed to share board";
-}
-
 export default function BoardSettingsDialog({ board, open, onOpenChange, onDeleted }: Props) {
   const [name, setName] = useState(board.name);
-  const [shareEmail, setShareEmail] = useState("");
   const qc = useQueryClient();
   const { toast } = useToast();
   const updateBoard = useUpdateBoard();
   const deleteBoard = useDeleteBoard();
-  const { data: members = [] } = useListBoardMembers(board.id, {
-    query: {
-      enabled: open && board.isOwner,
-      queryKey: getListBoardMembersQueryKey(board.id),
-    },
-  });
-  const addMember = useAddBoardMember();
-  const removeMember = useRemoveBoardMember();
 
   useEffect(() => {
     if (open) {
       setName(board.name);
-      setShareEmail("");
     }
   }, [open, board.name]);
 
@@ -72,36 +49,6 @@ export default function BoardSettingsDialog({ board, open, onOpenChange, onDelet
           toast({ title: "Board renamed" });
         },
         onError: () => toast({ title: "Failed to rename board", variant: "destructive" }),
-      }
-    );
-  }
-
-  function handleAddMember() {
-    const email = shareEmail.trim();
-    if (!email) return;
-    addMember.mutate(
-      { id: board.id, data: { email } },
-      {
-        onSuccess: () => {
-          qc.invalidateQueries({ queryKey: getListBoardMembersQueryKey(board.id) });
-          setShareEmail("");
-          toast({ title: "User added to board" });
-        },
-        onError: (error) =>
-          toast({ title: getShareErrorMessage(error), variant: "destructive" }),
-      }
-    );
-  }
-
-  function handleRemoveMember(userId: number) {
-    removeMember.mutate(
-      { id: board.id, userId },
-      {
-        onSuccess: () => {
-          qc.invalidateQueries({ queryKey: getListBoardMembersQueryKey(board.id) });
-          toast({ title: "Member removed" });
-        },
-        onError: () => toast({ title: "Failed to remove member", variant: "destructive" }),
       }
     );
   }
@@ -146,47 +93,10 @@ export default function BoardSettingsDialog({ board, open, onOpenChange, onDelet
         </form>
 
         {board.isOwner && (
-          <div className="space-y-3 pt-2 border-t border-border">
-            <Label htmlFor="share-email">Share with</Label>
-            <div className="flex gap-2">
-              <Input
-                id="share-email"
-                type="email"
-                placeholder="Email address"
-                value={shareEmail}
-                onChange={e => setShareEmail(e.target.value)}
-                className="flex-1"
-              />
-              <Button
-                onClick={handleAddMember}
-                disabled={!shareEmail.trim() || addMember.isPending}
-              >
-                Add
-              </Button>
-            </div>
-
-            <div className="space-y-2">
-              {members.map(member => (
-                <div key={member.userId} className="flex items-center justify-between text-sm py-1.5 px-2 rounded-md bg-muted/50">
-                  <div>
-                    <span className="font-medium">{member.email}</span>
-                    {member.isOwner && (
-                      <span className="text-xs text-muted-foreground ml-2">Owner</span>
-                    )}
-                  </div>
-                  {!member.isOwner && (
-                    <button
-                      onClick={() => handleRemoveMember(member.userId)}
-                      className="p-1 text-muted-foreground hover:text-destructive"
-                      aria-label="Remove member"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
+          <p className="text-sm text-muted-foreground pt-2 border-t border-border">
+            To share this board with others, link it to a team on the Teams page and invite members
+            there.
+          </p>
         )}
 
         {board.isOwner && (

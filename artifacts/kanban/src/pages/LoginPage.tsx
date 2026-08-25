@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useLogin, useSignup } from "@/hooks/useAuth";
+import { useEffect, useState } from "react";
+import { useLogin, useSignup, fetchInvitePreview } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,11 +7,24 @@ import { Loader2, LayoutDashboard } from "lucide-react";
 
 type AuthMode = "login" | "signup";
 
+function getInviteFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const invite = params.get("invite");
+  const email = params.get("email");
+  return { invite, email };
+}
+
 export default function LoginPage() {
-  const [mode, setMode] = useState<AuthMode>("login");
-  const [email, setEmail] = useState("");
+  const urlInvite = getInviteFromUrl();
+  const [mode, setMode] = useState<AuthMode>(urlInvite.invite ? "signup" : "login");
+  const [email, setEmail] = useState(urlInvite.email ?? "");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [inviteToken, setInviteToken] = useState(urlInvite.invite ?? "");
+  const [inviteTeamName, setInviteTeamName] = useState("");
+  const [emailLocked, setEmailLocked] = useState(false);
   const [error, setError] = useState("");
   const login = useLogin();
   const signup = useSignup();
@@ -19,7 +32,24 @@ export default function LoginPage() {
   const isPending = login.isPending || signup.isPending;
   const isSignup = mode === "signup";
 
+  useEffect(() => {
+    if (!urlInvite.invite) return;
+
+    fetchInvitePreview(urlInvite.invite)
+      .then((preview) => {
+        setEmail(preview.email);
+        setInviteToken(preview.token);
+        setInviteTeamName(preview.teamName);
+        setEmailLocked(true);
+        setMode("signup");
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "Invalid invitation");
+      });
+  }, [urlInvite.invite]);
+
   function switchMode(next: AuthMode) {
+    if (emailLocked) return;
     setMode(next);
     setError("");
     setConfirmPassword("");
@@ -39,18 +69,33 @@ export default function LoginPage() {
       return;
     }
 
-    const mutation = isSignup ? signup : login;
-    mutation.mutate(
+    if (isSignup && (!firstName.trim() || !lastName.trim())) {
+      setError("First and last name are required");
+      return;
+    }
+
+    if (isSignup) {
+      signup.mutate(
+        {
+          email,
+          password,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          inviteToken: inviteToken || undefined,
+        },
+        {
+          onError: (err) =>
+            setError(err instanceof Error ? err.message : "Sign up failed"),
+        },
+      );
+      return;
+    }
+
+    login.mutate(
       { email, password },
       {
         onError: (err) =>
-          setError(
-            err instanceof Error
-              ? err.message
-              : isSignup
-                ? "Sign up failed"
-                : "Login failed",
-          ),
+          setError(err instanceof Error ? err.message : "Login failed"),
       },
     );
   }
@@ -70,12 +115,39 @@ export default function LoginPage() {
             {isSignup ? "Create account" : "Sign in"}
           </h1>
           <p className="text-sm text-muted-foreground mb-6">
-            {isSignup
-              ? "Sign up to start organizing your tasks"
-              : "Enter your credentials to continue"}
+            {inviteTeamName
+              ? `Join team "${inviteTeamName}" on Kanban`
+              : isSignup
+                ? "Sign up to start organizing your tasks"
+                : "Enter your credentials to continue"}
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {isSignup && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="firstName">First name</Label>
+                  <Input
+                    id="firstName"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="Jane"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="lastName">Last name</Label>
+                  <Input
+                    id="lastName"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="Doe"
+                    required
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="space-y-1.5">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -84,8 +156,10 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                autoFocus
+                autoFocus={!isSignup}
                 required
+                readOnly={emailLocked}
+                className={emailLocked ? "bg-muted" : undefined}
               />
             </div>
 
@@ -143,8 +217,9 @@ export default function LoginPage() {
                 Already have an account?{" "}
                 <button
                   type="button"
-                  className="text-primary font-medium hover:underline"
+                  className="text-primary font-medium hover:underline disabled:opacity-50"
                   onClick={() => switchMode("login")}
+                  disabled={emailLocked}
                 >
                   Sign in
                 </button>

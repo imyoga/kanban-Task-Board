@@ -6,10 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./assignee";
 export * from "./board";
 export * from "./boardInput";
 export * from "./boardMember";
 export * from "./boardMemberInput";
+export * from "./boardTeam";
 export * from "./boardUpdate";
 export * from "./column";
 export * from "./columnInput";
@@ -27,3 +29,10 @@ export * from "./taskStatsByColumnItem";
 export * from "./taskStatsByPriority";
 export * from "./taskUpdate";
 export * from "./taskUpdatePriority";
+export * from "./team";
+export * from "./teamInput";
+export * from "./teamInvite";
+export * from "./teamInviteInput";
+export * from "./teamInviteResult";
+export * from "./teamMember";
+export * from "./teamUpdate";

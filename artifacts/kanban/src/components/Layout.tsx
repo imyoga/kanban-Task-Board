@@ -1,10 +1,10 @@
 import { Link, useLocation } from "wouter";
-import { BarChart2, Plus, LogOut, ChevronRight, ChevronDown } from "lucide-react";
+import { BarChart2, Plus, LogOut, ChevronRight, ChevronDown, Users, UserCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import AddColumnDialog from "@/components/AddColumnDialog";
 import AddBoardDialog from "@/components/AddBoardDialog";
-import { useMe, useLogout } from "@/hooks/useAuth";
+import { useMe, useLogout, userInitials } from "@/hooks/useAuth";
 import { useListBoards } from "@workspace/api-client-react";
 import { useBoardIdFromRoute } from "@/hooks/useBoardId";
 import { Badge } from "@/components/ui/badge";
@@ -114,6 +114,19 @@ export default function Layout({ children }: LayoutProps) {
           })}
 
           <div className="pt-3 mt-2 border-t border-sidebar-border">
+            <Link href="/teams">
+              <span
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors cursor-pointer",
+                  location === "/teams"
+                    ? "bg-sidebar-accent text-white"
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-white"
+                )}
+              >
+                <Users className="w-4 h-4" />
+                Teams
+              </span>
+            </Link>
             <Link href={statsHref}>
               <span
                 className={cn(
@@ -144,10 +157,18 @@ export default function Layout({ children }: LayoutProps) {
         <div className="p-3 border-t border-sidebar-border">
           {user && (
             <div className="flex items-center gap-2 px-2 py-1.5 mb-1">
-              <div className="w-6 h-6 rounded-full bg-sidebar-accent flex items-center justify-center text-xs font-semibold text-white flex-shrink-0">
-                {user.email[0].toUpperCase()}
+              <div className="w-6 h-6 rounded-full bg-sidebar-accent flex items-center justify-center text-[10px] font-semibold text-white flex-shrink-0">
+                {userInitials(user)}
               </div>
-              <span className="text-xs text-sidebar-foreground/60 truncate">{user.email}</span>
+              <span className="text-xs text-sidebar-foreground/60 truncate flex-1">{user.email}</span>
+              <Link href="/account">
+                <span
+                  className="p-1 rounded-md text-sidebar-foreground/50 hover:text-white hover:bg-sidebar-accent/60 transition-colors"
+                  aria-label="Account settings"
+                >
+                  <UserCircle className="w-4 h-4" />
+                </span>
+              </Link>
             </div>
           )}
           <button

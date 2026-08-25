@@ -4,6 +4,7 @@ import authRouter from "./auth";
 import boardsRouter from "./boards";
 import columnsRouter from "./columns";
 import tasksRouter from "./tasks";
+import teamsRouter from "./teams";
 import { requireAuth } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
@@ -16,5 +17,6 @@ router.use(requireAuth);
 router.use(boardsRouter);
 router.use(columnsRouter);
 router.use(tasksRouter);
+router.use(teamsRouter);
 
 export default router;

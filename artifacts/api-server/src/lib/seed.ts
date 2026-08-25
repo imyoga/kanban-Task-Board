@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { logger } from "./logger";
 import { createDefaultBoardForUser, migrateUsersToBoards } from "./boards";
 import { ensureSchema } from "./ensureSchema";
+import { backfillUserNames } from "./backfillUsers";
 
 const TEST_EMAIL = "moradiyayogeshg@gmail.com";
 const TEST_PASSWORD = "Yogesh123";
@@ -31,6 +32,7 @@ export async function seedIfNeeded() {
   await ensureSchema();
   await ensureSessionTable();
   await migrateUsersToBoards();
+  await backfillUserNames();
 
   let [user] = await db.select().from(usersTable).where(eq(usersTable.email, TEST_EMAIL));
 
@@ -39,7 +41,12 @@ export async function seedIfNeeded() {
     const passwordHash = await bcrypt.hash(TEST_PASSWORD, 10);
     [user] = await db
       .insert(usersTable)
-      .values({ email: TEST_EMAIL, passwordHash })
+      .values({
+        email: TEST_EMAIL,
+        passwordHash,
+        firstName: "Yogesh",
+        lastName: "Moradiya",
+      })
       .returning();
     logger.info({ userId: user.id }, "Test user created");
   }

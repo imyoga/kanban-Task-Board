@@ -3,3 +3,6 @@ export * from "./boardMembers";
 export * from "./columns";
 export * from "./tasks";
 export * from "./users";
+export * from "./teams";
+export * from "./teamMembers";
+export * from "./teamInvites";

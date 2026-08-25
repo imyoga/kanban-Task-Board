@@ -3,8 +3,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   useCreateTask,
   useUpdateTask,
+  useGetBoardTeam,
   getListTasksQueryKey,
   getGetTaskStatsQueryKey,
+  getGetBoardTeamQueryKey,
 } from "@workspace/api-client-react";
 import type { Task, Column } from "@workspace/api-client-react";
 import {
@@ -26,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { userDisplayName } from "@/hooks/useAuth";
 
 interface Props {
   open: boolean;
@@ -42,13 +45,18 @@ export default function TaskDialog({ open, onOpenChange, boardId, columns, defau
   const [columnId, setColumnId] = useState<number>(defaultColumnId ?? columns[0]?.id ?? 0);
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
   const [dueDate, setDueDate] = useState("");
+  const [assigneeId, setAssigneeId] = useState<string>("none");
 
+  const { data: boardTeam } = useGetBoardTeam(boardId, {
+    query: { enabled: open, queryKey: getGetBoardTeamQueryKey(boardId) },
+  });
   const qc = useQueryClient();
   const { toast } = useToast();
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
 
   const isEdit = !!editTask;
+  const teamMembers = boardTeam?.members ?? [];
 
   useEffect(() => {
     if (editTask) {
@@ -57,12 +65,14 @@ export default function TaskDialog({ open, onOpenChange, boardId, columns, defau
       setColumnId(editTask.columnId);
       setPriority(editTask.priority as "low" | "medium" | "high");
       setDueDate(editTask.dueDate ?? "");
+      setAssigneeId(editTask.assigneeId ? String(editTask.assigneeId) : "none");
     } else {
       setTitle("");
       setDescription("");
       setColumnId(defaultColumnId ?? columns[0]?.id ?? 0);
       setPriority("medium");
       setDueDate("");
+      setAssigneeId("none");
     }
   }, [editTask, open, defaultColumnId, columns]);
 
@@ -81,11 +91,21 @@ export default function TaskDialog({ open, onOpenChange, boardId, columns, defau
       columnId,
       priority,
       dueDate: dueDate || undefined,
+      assigneeId:
+        teamMembers.length > 0 && assigneeId !== "none" ? Number(assigneeId) : undefined,
     };
 
     if (isEdit && editTask) {
+      const updatePayload = {
+        ...payload,
+        assigneeId: teamMembers.length > 0
+          ? assigneeId === "none"
+            ? null
+            : Number(assigneeId)
+          : undefined,
+      };
       updateTask.mutate(
-        { id: editTask.id, data: payload },
+        { id: editTask.id, data: updatePayload },
         {
           onSuccess: () => {
             invalidate();
@@ -172,6 +192,25 @@ export default function TaskDialog({ open, onOpenChange, boardId, columns, defau
               </Select>
             </div>
           </div>
+
+          {teamMembers.length > 0 && (
+            <div className="space-y-1.5">
+              <Label>Assignee</Label>
+              <Select value={assigneeId} onValueChange={setAssigneeId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Unassigned" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Unassigned</SelectItem>
+                  {teamMembers.map(member => (
+                    <SelectItem key={member.userId} value={String(member.userId)}>
+                      {userDisplayName(member)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <Label htmlFor="task-due">Due date</Label>

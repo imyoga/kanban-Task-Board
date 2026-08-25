@@ -95,6 +95,136 @@ export const RemoveBoardMemberParams = zod.object({
 });
 
 /**
+ * @summary List teams for the current user
+ */
+export const ListTeamsResponseItem = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  boardId: zod.number().nullish(),
+  boardName: zod.string().nullish(),
+  isOwner: zod.boolean(),
+  createdAt: zod.string(),
+});
+export const ListTeamsResponse = zod.array(ListTeamsResponseItem);
+
+/**
+ * @summary Create a team
+ */
+
+export const CreateTeamBody = zod.object({
+  name: zod.string().min(1),
+});
+
+/**
+ * @summary Update a team (owner only)
+ */
+export const UpdateTeamParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateTeamBody = zod.object({
+  name: zod.string().min(1).optional(),
+  boardId: zod.number().nullish(),
+});
+
+export const UpdateTeamResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  boardId: zod.number().nullish(),
+  boardName: zod.string().nullish(),
+  isOwner: zod.boolean(),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary Delete a team (owner only)
+ */
+export const DeleteTeamParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary List team members
+ */
+export const ListTeamMembersParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListTeamMembersResponseItem = zod.object({
+  userId: zod.number(),
+  email: zod.string(),
+  firstName: zod.string(),
+  lastName: zod.string(),
+  isOwner: zod.boolean(),
+});
+export const ListTeamMembersResponse = zod.array(ListTeamMembersResponseItem);
+
+/**
+ * @summary List pending team invites (owner only)
+ */
+export const ListTeamInvitesParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListTeamInvitesResponseItem = zod.object({
+  id: zod.number(),
+  email: zod.string(),
+  createdAt: zod.string(),
+});
+export const ListTeamInvitesResponse = zod.array(ListTeamInvitesResponseItem);
+
+/**
+ * @summary Invite a user to a team (owner only)
+ */
+export const InviteTeamMemberParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const InviteTeamMemberBody = zod.object({
+  email: zod.string().email(),
+});
+
+/**
+ * @summary Remove a team member (owner only)
+ */
+export const RemoveTeamMemberParams = zod.object({
+  id: zod.coerce.number(),
+  userId: zod.coerce.number(),
+});
+
+/**
+ * @summary Cancel a pending invite (owner only)
+ */
+export const CancelTeamInviteParams = zod.object({
+  id: zod.coerce.number(),
+  inviteId: zod.coerce.number(),
+});
+
+/**
+ * @summary Get the team linked to a board
+ */
+export const GetBoardTeamParams = zod.object({
+  boardId: zod.coerce.number(),
+});
+
+export const GetBoardTeamResponse = zod.union([
+  zod.object({
+    id: zod.number(),
+    name: zod.string(),
+    members: zod.array(
+      zod.object({
+        userId: zod.number(),
+        email: zod.string(),
+        firstName: zod.string(),
+        lastName: zod.string(),
+        isOwner: zod.boolean(),
+      }),
+    ),
+  }),
+  zod.null(),
+]);
+
+/**
  * @summary List all columns for a board
  */
 export const ListColumnsQueryParams = zod.object({
@@ -165,6 +295,17 @@ export const ListTasksResponseItem = zod.object({
   priority: zod.enum(["low", "medium", "high"]),
   position: zod.number(),
   dueDate: zod.string().nullish(),
+  assigneeId: zod.number().nullish(),
+  assignee: zod
+    .union([
+      zod.object({
+        id: zod.number(),
+        firstName: zod.string(),
+        lastName: zod.string(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
   createdAt: zod.string(),
   updatedAt: zod.string().optional(),
 });
@@ -186,6 +327,7 @@ export const CreateTaskBody = zod.object({
     .default(createTaskBodyPriorityDefault),
   position: zod.number().optional(),
   dueDate: zod.string().optional(),
+  assigneeId: zod.number().optional(),
 });
 
 /**
@@ -227,6 +369,17 @@ export const GetTaskResponse = zod.object({
   priority: zod.enum(["low", "medium", "high"]),
   position: zod.number(),
   dueDate: zod.string().nullish(),
+  assigneeId: zod.number().nullish(),
+  assignee: zod
+    .union([
+      zod.object({
+        id: zod.number(),
+        firstName: zod.string(),
+        lastName: zod.string(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
   createdAt: zod.string(),
   updatedAt: zod.string().optional(),
 });
@@ -245,6 +398,7 @@ export const UpdateTaskBody = zod.object({
   priority: zod.enum(["low", "medium", "high"]).optional(),
   position: zod.number().optional(),
   dueDate: zod.string().nullish(),
+  assigneeId: zod.number().nullish(),
 });
 
 export const UpdateTaskResponse = zod.object({
@@ -255,6 +409,17 @@ export const UpdateTaskResponse = zod.object({
   priority: zod.enum(["low", "medium", "high"]),
   position: zod.number(),
   dueDate: zod.string().nullish(),
+  assigneeId: zod.number().nullish(),
+  assignee: zod
+    .union([
+      zod.object({
+        id: zod.number(),
+        firstName: zod.string(),
+        lastName: zod.string(),
+      }),
+      zod.null(),
+    ])
+    .optional(),
   createdAt: zod.string(),
   updatedAt: zod.string().optional(),
 });

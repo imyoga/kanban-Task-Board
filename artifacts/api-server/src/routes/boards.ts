@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, boardsTable, boardMembersTable, usersTable } from "@workspace/db";
+import { db, boardsTable, boardMembersTable, teamsTable, teamMembersTable, usersTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { getBoardAccess } from "../lib/boardAccess";
 import { createDefaultBoardForUser, seedDefaultColumnsForBoard } from "../lib/boards";
@@ -34,12 +34,22 @@ router.get("/boards", async (req, res) => {
     .where(eq(boardMembersTable.userId, userId));
 
   const shared = memberRows.map((row) => row.board);
+  const teamRows = await db
+    .select({ board: boardsTable })
+    .from(teamMembersTable)
+    .innerJoin(teamsTable, eq(teamMembersTable.teamId, teamsTable.id))
+    .innerJoin(boardsTable, eq(teamsTable.boardId, boardsTable.id))
+    .where(eq(teamMembersTable.userId, userId));
+
+  const teamBoards = teamRows.map((row) => row.board);
   const ownedIds = new Set(owned.map((b) => b.id));
   const uniqueShared = shared.filter((b) => !ownedIds.has(b.id));
+  const uniqueTeam = teamBoards.filter((b) => !ownedIds.has(b.id) && !uniqueShared.some((s) => s.id === b.id));
 
   res.json([
     ...owned.map((b) => serializeBoard(b, userId)),
     ...uniqueShared.map((b) => serializeBoard(b, userId)),
+    ...uniqueTeam.map((b) => serializeBoard(b, userId)),
   ]);
 });
 

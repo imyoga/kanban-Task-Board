@@ -5,6 +5,7 @@
  * Kanban board todo tracker API
  * OpenAPI spec version: 0.1.0
  */
+import type { Assignee } from "./assignee";
 import type { TaskPriority } from "./taskPriority";
 
 export interface Task {
@@ -17,6 +18,9 @@ export interface Task {
   position: number;
   /** @nullable */
   dueDate?: string | null;
+  /** @nullable */
+  assigneeId?: number | null;
+  assignee?: Assignee | null;
   createdAt: string;
   updatedAt?: string;
 }

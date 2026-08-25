@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db, tasksTable, columnsTable } from "@workspace/db";
-import { eq, asc, and } from "drizzle-orm";
+import { db, tasksTable, columnsTable, usersTable, teamMembersTable } from "@workspace/db";
+import { eq, asc, and, inArray } from "drizzle-orm";
 import {
   ListTasksQueryParams,
   CreateTaskBody,
@@ -9,16 +9,64 @@ import {
   UpdateTaskBody,
   DeleteTaskParams,
 } from "@workspace/api-zod";
-import { getBoardAccess } from "../lib/boardAccess";
+import { getBoardAccess, getTeamForBoard } from "../lib/boardAccess";
 
 const router = Router();
 
-function serializeTask(t: typeof tasksTable.$inferSelect) {
+type UserRow = typeof usersTable.$inferSelect;
+
+function serializeAssignee(user: UserRow | null | undefined) {
+  if (!user) return null;
   return {
-    ...t,
+    id: user.id,
+    firstName: user.firstName,
+    lastName: user.lastName,
+  };
+}
+
+function serializeTask(t: typeof tasksTable.$inferSelect, assignee?: UserRow | null) {
+  return {
+    id: t.id,
+    title: t.title,
+    description: t.description,
+    columnId: t.columnId,
+    priority: t.priority,
+    position: t.position,
+    dueDate: t.dueDate,
+    assigneeId: t.assigneeId,
+    assignee: serializeAssignee(assignee),
     createdAt: t.createdAt.toISOString(),
     updatedAt: t.updatedAt.toISOString(),
   };
+}
+
+async function loadAssignees(assigneeIds: number[]) {
+  if (assigneeIds.length === 0) return new Map<number, UserRow>();
+  const users = await db
+    .select()
+    .from(usersTable)
+    .where(inArray(usersTable.id, assigneeIds));
+  return new Map(users.map((u) => [u.id, u]));
+}
+
+async function validateAssignee(boardId: number, assigneeId: number | null | undefined) {
+  if (assigneeId == null) return { ok: true };
+
+  const team = await getTeamForBoard(boardId);
+  if (!team) {
+    return { ok: false, error: "This board has no linked team" };
+  }
+
+  const [member] = await db
+    .select()
+    .from(teamMembersTable)
+    .where(and(eq(teamMembersTable.teamId, team.id), eq(teamMembersTable.userId, assigneeId)));
+
+  if (!member) {
+    return { ok: false, error: "Assignee must be a member of the linked team" };
+  }
+
+  return { ok: true };
 }
 
 router.get("/tasks/stats", async (req, res) => {
@@ -90,7 +138,13 @@ router.get("/tasks", async (req, res) => {
   }
 
   const tasks = await query.orderBy(asc(tasksTable.position));
-  res.json(tasks.map(serializeTask));
+  const assigneeMap = await loadAssignees(
+    tasks.map((t) => t.assigneeId).filter((id): id is number => id != null),
+  );
+
+  res.json(
+    tasks.map((t) => serializeTask(t, t.assigneeId ? assigneeMap.get(t.assigneeId) : null)),
+  );
 });
 
 router.post("/tasks", async (req, res) => {
@@ -101,7 +155,8 @@ router.post("/tasks", async (req, res) => {
   }
 
   const userId = req.session.userId!;
-  const { title, description, columnId, priority, position, dueDate, boardId } = parsed.data;
+  const { title, description, columnId, priority, position, dueDate, boardId, assigneeId } =
+    parsed.data;
 
   if (!boardId) {
     res.status(400).json({ error: "boardId is required" });
@@ -111,6 +166,12 @@ router.post("/tasks", async (req, res) => {
   const access = await getBoardAccess(boardId, userId);
   if (!access || !access.canEdit) {
     res.status(access ? 403 : 404).json({ error: access ? "Forbidden" : "Board not found" });
+    return;
+  }
+
+  const assigneeCheck = await validateAssignee(boardId, assigneeId);
+  if (!assigneeCheck.ok) {
+    res.status(400).json({ error: assigneeCheck.error });
     return;
   }
 
@@ -141,10 +202,17 @@ router.post("/tasks", async (req, res) => {
       priority: priority ?? "medium",
       position: pos,
       dueDate: dueDate ?? null,
+      assigneeId: assigneeId ?? null,
     })
     .returning();
 
-  res.status(201).json(serializeTask(task));
+  let assignee: UserRow | null = null;
+  if (task.assigneeId) {
+    const [u] = await db.select().from(usersTable).where(eq(usersTable.id, task.assigneeId));
+    assignee = u ?? null;
+  }
+
+  res.status(201).json(serializeTask(task, assignee));
 });
 
 router.get("/tasks/:id", async (req, res) => {
@@ -168,7 +236,13 @@ router.get("/tasks/:id", async (req, res) => {
     return;
   }
 
-  res.json(serializeTask(task));
+  let assignee: UserRow | null = null;
+  if (task.assigneeId) {
+    const [u] = await db.select().from(usersTable).where(eq(usersTable.id, task.assigneeId));
+    assignee = u ?? null;
+  }
+
+  res.json(serializeTask(task, assignee));
 });
 
 router.patch("/tasks/:id", async (req, res) => {
@@ -210,6 +284,18 @@ router.patch("/tasks/:id", async (req, res) => {
   if (body.position !== undefined) updates.position = body.position;
   if (body.dueDate !== undefined) updates.dueDate = body.dueDate;
 
+  if (body.assigneeId !== undefined) {
+    const assigneeCheck = await validateAssignee(
+      existing.boardId,
+      body.assigneeId === null ? null : body.assigneeId,
+    );
+    if (!assigneeCheck.ok) {
+      res.status(400).json({ error: assigneeCheck.error });
+      return;
+    }
+    updates.assigneeId = body.assigneeId;
+  }
+
   if (body.columnId !== undefined) {
     const [column] = await db
       .select()
@@ -228,7 +314,13 @@ router.patch("/tasks/:id", async (req, res) => {
     .where(eq(tasksTable.id, paramsParsed.data.id))
     .returning();
 
-  res.json(serializeTask(task));
+  let assignee: UserRow | null = null;
+  if (task.assigneeId) {
+    const [u] = await db.select().from(usersTable).where(eq(usersTable.id, task.assigneeId));
+    assignee = u ?? null;
+  }
+
+  res.json(serializeTask(task, assignee));
 });
 
 router.delete("/tasks/:id", async (req, res) => {

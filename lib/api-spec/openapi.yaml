@@ -18,6 +18,8 @@ tags:
     description: Board column operations
   - name: tasks
     description: Task card operations
+  - name: teams
+    description: Team workspace operations
 paths:
   /healthz:
     get:
@@ -182,6 +184,230 @@ paths:
           description: Removed
         "403":
           description: Forbidden
+        "404":
+          description: Not found
+
+  /teams:
+    get:
+      operationId: listTeams
+      tags: [teams]
+      summary: List teams for the current user
+      responses:
+        "200":
+          description: List of teams
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Team"
+    post:
+      operationId: createTeam
+      tags: [teams]
+      summary: Create a team
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeamInput"
+      responses:
+        "201":
+          description: Created team
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Team"
+
+  /teams/{id}:
+    patch:
+      operationId: updateTeam
+      tags: [teams]
+      summary: Update a team (owner only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeamUpdate"
+      responses:
+        "200":
+          description: Updated team
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Team"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteTeam
+      tags: [teams]
+      summary: Delete a team (owner only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /teams/{id}/members:
+    get:
+      operationId: listTeamMembers
+      tags: [teams]
+      summary: List team members
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Team members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TeamMember"
+        "404":
+          description: Not found
+
+  /teams/{id}/invites:
+    get:
+      operationId: listTeamInvites
+      tags: [teams]
+      summary: List pending team invites (owner only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Pending invites
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TeamInvite"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+    post:
+      operationId: inviteTeamMember
+      tags: [teams]
+      summary: Invite a user to a team (owner only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeamInviteInput"
+      responses:
+        "201":
+          description: Invite sent or member added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamInviteResult"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /teams/{id}/members/{userId}:
+    delete:
+      operationId: removeTeamMember
+      tags: [teams]
+      summary: Remove a team member (owner only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Removed
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /teams/{id}/invites/{inviteId}:
+    delete:
+      operationId: cancelTeamInvite
+      tags: [teams]
+      summary: Cancel a pending invite (owner only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: inviteId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Cancelled
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /boards/{boardId}/team:
+    get:
+      operationId: getBoardTeam
+      tags: [teams]
+      summary: Get the team linked to a board
+      parameters:
+        - name: boardId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Linked team with members
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/BoardTeam"
+                  - type: "null"
         "404":
           description: Not found
 
@@ -506,6 +732,12 @@ components:
           type: integer
         dueDate:
           type: ["string", "null"]
+        assigneeId:
+          type: ["integer", "null"]
+        assignee:
+          oneOf:
+            - $ref: "#/components/schemas/Assignee"
+            - type: "null"
         createdAt:
           type: string
         updatedAt:
@@ -532,6 +764,8 @@ components:
           type: integer
         dueDate:
           type: string
+        assigneeId:
+          type: integer
 
     TaskUpdate:
       type: object
@@ -550,6 +784,8 @@ components:
           type: integer
         dueDate:
           type: ["string", "null"]
+        assigneeId:
+          type: ["integer", "null"]
 
     TaskStats:
       type: object
@@ -581,3 +817,126 @@ components:
               type: integer
             high:
               type: integer
+
+    Assignee:
+      type: object
+      required: [id, firstName, lastName]
+      properties:
+        id:
+          type: integer
+        firstName:
+          type: string
+        lastName:
+          type: string
+
+    Team:
+      type: object
+      required: [id, name, isOwner, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        boardId:
+          type: ["integer", "null"]
+        boardName:
+          type: ["string", "null"]
+        isOwner:
+          type: boolean
+        createdAt:
+          type: string
+
+    TeamInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+
+    TeamUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        boardId:
+          type: ["integer", "null"]
+
+    TeamMember:
+      type: object
+      required: [userId, email, firstName, lastName, isOwner]
+      properties:
+        userId:
+          type: integer
+        email:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        isOwner:
+          type: boolean
+
+    TeamInvite:
+      type: object
+      required: [id, email, createdAt]
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        createdAt:
+          type: string
+
+    TeamInviteInput:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+
+    TeamInviteResult:
+      oneOf:
+        - type: object
+          required: [type, userId, email, firstName, lastName, isOwner]
+          properties:
+            type:
+              type: string
+              enum: [member]
+            userId:
+              type: integer
+            email:
+              type: string
+            firstName:
+              type: string
+            lastName:
+              type: string
+            isOwner:
+              type: boolean
+        - type: object
+          required: [type, id, email, createdAt]
+          properties:
+            type:
+              type: string
+              enum: [invite]
+            id:
+              type: integer
+            email:
+              type: string
+            createdAt:
+              type: string
+
+    BoardTeam:
+      type: object
+      required: [id, name, members]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/TeamMember"

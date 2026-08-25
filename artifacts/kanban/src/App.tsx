@@ -7,6 +7,8 @@ import BoardPage from "@/pages/BoardPage";
 import StatsPage from "@/pages/StatsPage";
 import HomeRedirect from "@/pages/HomeRedirect";
 import LoginPage from "@/pages/LoginPage";
+import TeamsPage from "@/pages/TeamsPage";
+import AccountPage from "@/pages/AccountPage";
 import Layout from "@/components/Layout";
 import { useMe } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
@@ -38,6 +40,8 @@ function Router() {
       <Layout>
         <Switch>
           <Route path="/" component={HomeRedirect} />
+          <Route path="/teams" component={TeamsPage} />
+          <Route path="/account" component={AccountPage} />
           <Route path="/boards/:boardId" component={BoardPage} />
           <Route path="/boards/:boardId/stats" component={StatsPage} />
           <Route component={NotFound} />

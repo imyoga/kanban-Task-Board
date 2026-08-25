@@ -4,6 +4,8 @@ import { Calendar, GripVertical, Trash2, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Task } from "@workspace/api-client-react";
 import { taskDndId } from "@/lib/dnd";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { userDisplayName, userInitials } from "@/hooks/useAuth";
 
 interface Props {
   task: Task;
@@ -39,6 +41,7 @@ export default function TaskCard({ task, onEdit, onDelete }: Props) {
   };
 
   const overdue = isOverdue(task.dueDate);
+  const assignee = task.assignee;
 
   return (
     <div
@@ -60,9 +63,24 @@ export default function TaskCard({ task, onEdit, onDelete }: Props) {
         </button>
 
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-foreground leading-snug break-words">
-            {task.title}
-          </p>
+          <div className="flex items-start gap-2">
+            <p className="text-sm font-medium text-foreground leading-snug break-words flex-1">
+              {task.title}
+            </p>
+            {assignee && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div
+                    className="w-6 h-6 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center text-[10px] font-semibold flex-shrink-0"
+                    aria-label={userDisplayName(assignee)}
+                  >
+                    {userInitials(assignee)}
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>{userDisplayName(assignee)}</TooltipContent>
+              </Tooltip>
+            )}
+          </div>
           {task.description && (
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed line-clamp-2">
               {task.description}

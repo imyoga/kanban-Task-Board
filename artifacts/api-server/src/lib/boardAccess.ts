@@ -1,4 +1,10 @@
-import { db, boardsTable, boardMembersTable } from "@workspace/db";
+import {
+  db,
+  boardsTable,
+  boardMembersTable,
+  teamsTable,
+  teamMembersTable,
+} from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 
 export async function getBoardAccess(boardId: number, userId: number) {
@@ -14,9 +20,21 @@ export async function getBoardAccess(boardId: number, userId: number) {
     .from(boardMembersTable)
     .where(and(eq(boardMembersTable.boardId, boardId), eq(boardMembersTable.userId, userId)));
 
-  if (!member) return null;
+  if (member) {
+    return { board, isOwner: false, canManage: false, canEdit: true };
+  }
 
-  return { board, isOwner: false, canManage: false, canEdit: true };
+  const [teamMember] = await db
+    .select({ team: teamsTable })
+    .from(teamMembersTable)
+    .innerJoin(teamsTable, eq(teamMembersTable.teamId, teamsTable.id))
+    .where(and(eq(teamsTable.boardId, boardId), eq(teamMembersTable.userId, userId)));
+
+  if (teamMember) {
+    return { board, isOwner: false, canManage: false, canEdit: true };
+  }
+
+  return null;
 }
 
 export async function getAccessibleBoardIds(userId: number) {
@@ -28,5 +46,22 @@ export async function getAccessibleBoardIds(userId: number) {
     .select({ boardId: boardMembersTable.boardId })
     .from(boardMembersTable)
     .where(eq(boardMembersTable.userId, userId));
-  return [...owned.map((o) => o.id), ...shared.map((s) => s.boardId)];
+  const teamBoards = await db
+    .select({ boardId: teamsTable.boardId })
+    .from(teamMembersTable)
+    .innerJoin(teamsTable, eq(teamMembersTable.teamId, teamsTable.id))
+    .where(eq(teamMembersTable.userId, userId));
+
+  const ids = new Set<number>();
+  for (const o of owned) ids.add(o.id);
+  for (const s of shared) ids.add(s.boardId);
+  for (const t of teamBoards) {
+    if (t.boardId != null) ids.add(t.boardId);
+  }
+  return [...ids];
+}
+
+export async function getTeamForBoard(boardId: number) {
+  const [team] = await db.select().from(teamsTable).where(eq(teamsTable.boardId, boardId));
+  return team ?? null;
 }

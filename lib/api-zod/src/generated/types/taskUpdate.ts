@@ -17,4 +17,6 @@ export interface TaskUpdate {
   position?: number;
   /** @nullable */
   dueDate?: string | null;
+  /** @nullable */
+  assigneeId?: number | null;
 }
