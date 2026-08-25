@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db, boardsTable, boardMembersTable, usersTable } from "@workspace/db";
 import { eq, and, ne } from "drizzle-orm";
 import { getBoardAccess } from "../lib/boardAccess";
-import { createDefaultBoardForUser } from "../lib/boards";
+import { createDefaultBoardForUser, seedDefaultColumnsForBoard } from "../lib/boards";
 
 const router = Router();
 
@@ -44,6 +44,7 @@ router.post("/boards", async (req, res) => {
     : "Untitled board";
 
   const board = await createDefaultBoardForUser(userId, name);
+  await seedDefaultColumnsForBoard(board.id, userId);
   res.status(201).json(serializeBoard(board, userId));
 });
 

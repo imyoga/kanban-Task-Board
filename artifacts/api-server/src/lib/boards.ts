@@ -2,19 +2,30 @@ import { db, boardsTable, columnsTable, tasksTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { DEFAULT_COLUMNS } from "./defaultColumns";
 
+export async function seedDefaultColumnsForBoard(boardId: number, userId: number) {
+  const existing = await db
+    .select()
+    .from(columnsTable)
+    .where(eq(columnsTable.boardId, boardId));
+
+  if (existing.length > 0) return;
+
+  await db.insert(columnsTable).values(
+    DEFAULT_COLUMNS.map((column) => ({
+      ...column,
+      boardId,
+      userId,
+    })),
+  );
+}
+
 export async function createDefaultBoardForUser(userId: number, name = "My Board") {
   const [board] = await db
     .insert(boardsTable)
     .values({ ownerId: userId, name })
     .returning();
 
-  await db.insert(columnsTable).values(
-    DEFAULT_COLUMNS.map((column) => ({
-      ...column,
-      boardId: board.id,
-      userId,
-    })),
-  );
+  await seedDefaultColumnsForBoard(board.id, userId);
 
   return board;
 }
@@ -81,5 +92,10 @@ export async function migrateUsersToBoards() {
         .set({ boardId: board.id })
         .where(eq(tasksTable.id, task.id));
     }
+  }
+
+  const allBoards = await db.select().from(boardsTable);
+  for (const board of allBoards) {
+    await seedDefaultColumnsForBoard(board.id, board.ownerId);
   }
 }

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCreateBoard, getListBoardsQueryKey } from "@workspace/api-client-react";
+import { useCreateBoard, getListBoardsQueryKey, getListColumnsQueryKey } from "@workspace/api-client-react";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +33,7 @@ export default function AddBoardDialog({ open, onOpenChange }: Props) {
       {
         onSuccess: (board) => {
           qc.invalidateQueries({ queryKey: getListBoardsQueryKey() });
+          qc.invalidateQueries({ queryKey: getListColumnsQueryKey({ boardId: board.id }) });
           toast({ title: "Board created" });
           setName("");
           onOpenChange(false);

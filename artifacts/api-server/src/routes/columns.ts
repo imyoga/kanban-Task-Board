@@ -8,6 +8,7 @@ import {
   DeleteColumnParams,
 } from "@workspace/api-zod";
 import { getBoardAccess } from "../lib/boardAccess";
+import { seedDefaultColumnsForBoard } from "../lib/boards";
 
 const router = Router();
 
@@ -25,6 +26,8 @@ router.get("/columns", async (req, res) => {
     res.status(404).json({ error: "Board not found" });
     return;
   }
+
+  await seedDefaultColumnsForBoard(boardId, access.board.ownerId);
 
   const columns = await db
     .select()
