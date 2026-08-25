@@ -11,6 +11,7 @@ import {
   getGetTaskStatsQueryKey,
 } from "@workspace/api-client-react";
 import type { Column, Task } from "@workspace/api-client-react";
+import { columnDndId, taskDndId } from "@/lib/dnd";
 import TaskCard from "@/components/TaskCard";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -31,7 +32,7 @@ interface Props {
 }
 
 export default function KanbanColumn({ column, tasks, onAddTask, onEditTask, onDeleteTask }: Props) {
-  const { setNodeRef, isOver } = useDroppable({ id: column.id, data: { type: "column", column } });
+  const { setNodeRef, isOver } = useDroppable({ id: columnDndId(column.id), data: { type: "column", column } });
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(column.title);
 
@@ -133,7 +134,7 @@ export default function KanbanColumn({ column, tasks, onAddTask, onEditTask, onD
 
       {/* Tasks */}
       <div className="flex-1 px-2 pb-2 overflow-y-auto max-h-[calc(100vh-180px)]">
-        <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+        <SortableContext items={tasks.map(t => taskDndId(t.id))} strategy={verticalListSortingStrategy}>
           <div className="space-y-2">
             {tasks.map(task => (
               <TaskCard

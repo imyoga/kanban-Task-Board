@@ -3,6 +3,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Calendar, GripVertical, Trash2, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Task } from "@workspace/api-client-react";
+import { taskDndId } from "@/lib/dnd";
 
 interface Props {
   task: Task;
@@ -28,7 +29,7 @@ function formatDate(dateStr: string): string {
 
 export default function TaskCard({ task, onEdit, onDelete }: Props) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: task.id,
+    id: taskDndId(task.id),
     data: { type: "task", task },
   });
 

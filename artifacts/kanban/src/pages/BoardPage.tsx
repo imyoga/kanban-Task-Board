@@ -26,6 +26,7 @@ import TaskDialog from "@/components/TaskDialog";
 import AddColumnDialog from "@/components/AddColumnDialog";
 import { Plus, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getTaskFromDndActive } from "@/lib/dnd";
 
 export default function BoardPage() {
   const { data: columns = [], isLoading: colsLoading } = useListColumns();
@@ -54,9 +55,19 @@ export default function BoardPage() {
       .sort((a, b) => a.position - b.position);
   }
 
+  function resolveTargetColumnId(over: DragOverEvent["over"] | DragEndEvent["over"]): number | undefined {
+    if (!over) return undefined;
+    if (over.data.current?.type === "column") {
+      return (over.data.current.column as Column).id;
+    }
+    if (over.data.current?.type === "task") {
+      return (over.data.current.task as Task).columnId;
+    }
+    return undefined;
+  }
+
   function handleDragStart(event: DragStartEvent) {
-    const { active } = event;
-    const task = displayTasks.find(t => t.id === active.id);
+    const task = getTaskFromDndActive(event.active.data.current);
     if (task) setActiveTask(task);
   }
 
@@ -64,21 +75,29 @@ export default function BoardPage() {
     const { active, over } = event;
     if (!over) return;
 
-    const activeTask = displayTasks.find(t => t.id === active.id);
+    const activeTask = getTaskFromDndActive(active.data.current);
     if (!activeTask) return;
 
-    const overIsColumn = over.data.current?.type === "column";
-    const overTask = displayTasks.find(t => t.id === over.id);
-
-    const targetColumnId = overIsColumn
-      ? (over.data.current?.column as Column).id
-      : overTask?.columnId;
-
+    const targetColumnId = resolveTargetColumnId(over);
     if (targetColumnId === undefined || targetColumnId === activeTask.columnId) return;
 
     setLocalTasks(prev => {
       const base = prev ?? tasks;
-      return base.map(t => t.id === activeTask.id ? { ...t, columnId: targetColumnId } : t);
+      const targetTasks = base
+        .filter(t => t.columnId === targetColumnId)
+        .sort((a, b) => a.position - b.position);
+      const insertIndex = over.data.current?.type === "task"
+        ? targetTasks.findIndex(t => t.id === (over.data.current!.task as Task).id)
+        : targetTasks.length;
+      const moved = { ...activeTask, columnId: targetColumnId, position: insertIndex >= 0 ? insertIndex : targetTasks.length };
+      const others = base.filter(t => t.id !== activeTask.id);
+      const updatedTarget = [...targetTasks];
+      updatedTarget.splice(insertIndex >= 0 ? insertIndex : updatedTarget.length, 0, moved);
+      const reindexed = updatedTarget.map((t, i) => ({ ...t, position: i }));
+      return [
+        ...others.filter(t => t.columnId !== targetColumnId),
+        ...reindexed,
+      ];
     });
   }
 
@@ -91,39 +110,62 @@ export default function BoardPage() {
       return;
     }
 
+    const activeTaskItem = getTaskFromDndActive(active.data.current);
+    if (!activeTaskItem) {
+      setLocalTasks(null);
+      return;
+    }
+
     const current = localTasks ?? tasks;
-    const movedTask = current.find(t => t.id === active.id);
-    if (!movedTask) { setLocalTasks(null); return; }
+    const targetColumnId = resolveTargetColumnId(over) ?? activeTaskItem.columnId;
+    const overIsTask = over.data.current?.type === "task";
+    const overTask = overIsTask ? (over.data.current!.task as Task) : undefined;
 
-    const overTask = current.find(t => t.id === over.id);
-    const overIsColumn = over.data.current?.type === "column";
-
-    const targetColumnId = overIsColumn
-      ? (over.data.current?.column as Column).id
-      : (overTask?.columnId ?? movedTask.columnId);
-
-    // Reorder within same column
     let reordered = [...current];
-    if (!overIsColumn && overTask && overTask.columnId === movedTask.columnId) {
+    const movedInCurrent = reordered.find(t => t.id === activeTaskItem.id);
+    if (!movedInCurrent) {
+      setLocalTasks(null);
+      return;
+    }
+
+    if (overIsTask && overTask && overTask.columnId === movedInCurrent.columnId) {
       const colTasks = reordered
-        .filter(t => t.columnId === movedTask.columnId)
+        .filter(t => t.columnId === movedInCurrent.columnId)
         .sort((a, b) => a.position - b.position);
-      const oldIndex = colTasks.findIndex(t => t.id === movedTask.id);
+      const oldIndex = colTasks.findIndex(t => t.id === movedInCurrent.id);
       const newIndex = colTasks.findIndex(t => t.id === overTask.id);
       if (oldIndex !== newIndex) {
         const sorted = arrayMove(colTasks, oldIndex, newIndex).map((t, i) => ({ ...t, position: i }));
         reordered = reordered.map(t => sorted.find(s => s.id === t.id) ?? t);
       }
+    } else if (targetColumnId !== movedInCurrent.columnId) {
+      const sourceTasks = reordered
+        .filter(t => t.columnId === movedInCurrent.columnId && t.id !== movedInCurrent.id)
+        .sort((a, b) => a.position - b.position)
+        .map((t, i) => ({ ...t, position: i }));
+      const targetTasks = reordered
+        .filter(t => t.columnId === targetColumnId && t.id !== movedInCurrent.id)
+        .sort((a, b) => a.position - b.position);
+      const insertIndex = overIsTask
+        ? targetTasks.findIndex(t => t.id === overTask!.id)
+        : targetTasks.length;
+      const moved = { ...movedInCurrent, columnId: targetColumnId, position: insertIndex >= 0 ? insertIndex : targetTasks.length };
+      const updatedTarget = [...targetTasks];
+      updatedTarget.splice(insertIndex >= 0 ? insertIndex : updatedTarget.length, 0, moved);
+      const reindexedTarget = updatedTarget.map((t, i) => ({ ...t, position: i }));
+      reordered = [
+        ...reordered.filter(t => t.columnId !== movedInCurrent.columnId && t.columnId !== targetColumnId),
+        ...sourceTasks,
+        ...reindexedTarget,
+      ];
     }
 
-    // Apply column change
-    reordered = reordered.map(t => t.id === movedTask.id ? { ...t, columnId: targetColumnId } : t);
     setLocalTasks(reordered);
 
-    const finalTask = reordered.find(t => t.id === movedTask.id)!;
+    const finalTask = reordered.find(t => t.id === activeTaskItem.id)!;
 
     updateTask.mutate(
-      { id: movedTask.id, data: { columnId: finalTask.columnId, position: finalTask.position } },
+      { id: activeTaskItem.id, data: { columnId: finalTask.columnId, position: finalTask.position } },
       {
         onSuccess: () => {
           qc.invalidateQueries({ queryKey: getListTasksQueryKey() });
