@@ -7,5 +7,5 @@
  */
 
 export interface BoardMemberInput {
-  userId: number;
+  email: string;
 }

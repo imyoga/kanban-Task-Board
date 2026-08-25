@@ -27,4 +27,3 @@ export * from "./taskStatsByColumnItem";
 export * from "./taskStatsByPriority";
 export * from "./taskUpdate";
 export * from "./taskUpdatePriority";
-export * from "./userSummary";

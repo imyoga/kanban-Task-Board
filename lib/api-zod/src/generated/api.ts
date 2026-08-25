@@ -83,7 +83,7 @@ export const AddBoardMemberParams = zod.object({
 });
 
 export const AddBoardMemberBody = zod.object({
-  userId: zod.number(),
+  email: zod.string().email(),
 });
 
 /**
@@ -93,15 +93,6 @@ export const RemoveBoardMemberParams = zod.object({
   id: zod.coerce.number(),
   userId: zod.coerce.number(),
 });
-
-/**
- * @summary List other users in the system
- */
-export const ListUsersResponseItem = zod.object({
-  id: zod.number(),
-  email: zod.string(),
-});
-export const ListUsersResponse = zod.array(ListUsersResponseItem);
 
 /**
  * @summary List all columns for a board

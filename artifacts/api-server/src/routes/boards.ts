@@ -1,10 +1,16 @@
 import { Router } from "express";
 import { db, boardsTable, boardMembersTable, usersTable } from "@workspace/db";
-import { eq, and, ne } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { getBoardAccess } from "../lib/boardAccess";
 import { createDefaultBoardForUser, seedDefaultColumnsForBoard } from "../lib/boards";
 
 const router = Router();
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function normalizeEmail(email: string) {
+  return email.toLowerCase().trim();
+}
 
 function serializeBoard(board: typeof boardsTable.$inferSelect, userId: number) {
   const isOwner = board.ownerId === userId;
@@ -128,20 +134,28 @@ router.post("/boards/:id/members", async (req, res) => {
     return;
   }
 
-  const memberUserId = Number(req.body?.userId);
-  if (!memberUserId) {
-    res.status(400).json({ error: "userId is required" });
+  const rawEmail = req.body?.email;
+  if (!rawEmail || typeof rawEmail !== "string") {
+    res.status(400).json({ error: "Email is required" });
     return;
   }
+
+  const email = normalizeEmail(rawEmail);
+  if (!EMAIL_RE.test(email)) {
+    res.status(400).json({ error: "Invalid email address" });
+    return;
+  }
+
+  const [memberUser] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+  if (!memberUser) {
+    res.status(404).json({ error: "No user found with that email address" });
+    return;
+  }
+
+  const memberUserId = memberUser.id;
 
   if (memberUserId === access.board.ownerId) {
     res.status(400).json({ error: "Owner already has access" });
-    return;
-  }
-
-  const [memberUser] = await db.select().from(usersTable).where(eq(usersTable.id, memberUserId));
-  if (!memberUser) {
-    res.status(404).json({ error: "User not found" });
     return;
   }
 
@@ -186,16 +200,6 @@ router.delete("/boards/:id/members/:userId", async (req, res) => {
   }
 
   res.status(204).send();
-});
-
-router.get("/users", async (req, res) => {
-  const userId = req.session.userId!;
-  const users = await db
-    .select({ id: usersTable.id, email: usersTable.email })
-    .from(usersTable)
-    .where(ne(usersTable.id, userId));
-
-  res.json(users);
 });
 
 export default router;

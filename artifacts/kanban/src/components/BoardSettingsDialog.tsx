@@ -6,10 +6,8 @@ import {
   useListBoardMembers,
   useAddBoardMember,
   useRemoveBoardMember,
-  useListUsers,
   getListBoardsQueryKey,
   getListBoardMembersQueryKey,
-  getListUsersQueryKey,
 } from "@workspace/api-client-react";
 import type { Board } from "@workspace/api-client-react";
 import {
@@ -22,13 +20,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { X } from "lucide-react";
 
@@ -39,9 +30,17 @@ interface Props {
   onDeleted?: () => void;
 }
 
+function getShareErrorMessage(error: unknown): string {
+  if (error && typeof error === "object" && "data" in error) {
+    const data = (error as { data?: { error?: string } }).data;
+    if (data?.error) return data.error;
+  }
+  return "Failed to share board";
+}
+
 export default function BoardSettingsDialog({ board, open, onOpenChange, onDeleted }: Props) {
   const [name, setName] = useState(board.name);
-  const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [shareEmail, setShareEmail] = useState("");
   const qc = useQueryClient();
   const { toast } = useToast();
   const updateBoard = useUpdateBoard();
@@ -52,21 +51,15 @@ export default function BoardSettingsDialog({ board, open, onOpenChange, onDelet
       queryKey: getListBoardMembersQueryKey(board.id),
     },
   });
-  const { data: users = [] } = useListUsers({
-    query: {
-      enabled: open && board.isOwner,
-      queryKey: getListUsersQueryKey(),
-    },
-  });
   const addMember = useAddBoardMember();
   const removeMember = useRemoveBoardMember();
 
   useEffect(() => {
-    if (open) setName(board.name);
+    if (open) {
+      setName(board.name);
+      setShareEmail("");
+    }
   }, [open, board.name]);
-
-  const memberUserIds = new Set(members.map(m => m.userId));
-  const availableUsers = users.filter(u => !memberUserIds.has(u.id));
 
   function handleRename(e: React.FormEvent) {
     e.preventDefault();
@@ -84,17 +77,18 @@ export default function BoardSettingsDialog({ board, open, onOpenChange, onDelet
   }
 
   function handleAddMember() {
-    const userId = Number(selectedUserId);
-    if (!userId) return;
+    const email = shareEmail.trim();
+    if (!email) return;
     addMember.mutate(
-      { id: board.id, data: { userId } },
+      { id: board.id, data: { email } },
       {
         onSuccess: () => {
           qc.invalidateQueries({ queryKey: getListBoardMembersQueryKey(board.id) });
-          setSelectedUserId("");
+          setShareEmail("");
           toast({ title: "User added to board" });
         },
-        onError: () => toast({ title: "Failed to share board", variant: "destructive" }),
+        onError: (error) =>
+          toast({ title: getShareErrorMessage(error), variant: "destructive" }),
       }
     );
   }
@@ -153,23 +147,19 @@ export default function BoardSettingsDialog({ board, open, onOpenChange, onDelet
 
         {board.isOwner && (
           <div className="space-y-3 pt-2 border-t border-border">
-            <Label>Share with</Label>
+            <Label htmlFor="share-email">Share with</Label>
             <div className="flex gap-2">
-              <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                <SelectTrigger className="flex-1">
-                  <SelectValue placeholder="Select a user" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableUsers.map(user => (
-                    <SelectItem key={user.id} value={String(user.id)}>
-                      {user.email}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input
+                id="share-email"
+                type="email"
+                placeholder="Email address"
+                value={shareEmail}
+                onChange={e => setShareEmail(e.target.value)}
+                className="flex-1"
+              />
               <Button
                 onClick={handleAddMember}
-                disabled={!selectedUserId || addMember.isPending}
+                disabled={!shareEmail.trim() || addMember.isPending}
               >
                 Add
               </Button>

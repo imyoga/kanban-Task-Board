@@ -34,11 +34,6 @@ export interface BoardMember {
 }
 
 export interface BoardMemberInput {
-  userId: number;
-}
-
-export interface UserSummary {
-  id: number;
   email: string;
 }
 

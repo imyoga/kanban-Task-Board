@@ -159,7 +159,7 @@ paths:
         "403":
           description: Forbidden
         "404":
-          description: Not found
+          description: User not found
 
   /boards/{id}/members/{userId}:
     delete:
@@ -184,21 +184,6 @@ paths:
           description: Forbidden
         "404":
           description: Not found
-
-  /users:
-    get:
-      operationId: listUsers
-      tags: [users]
-      summary: List other users in the system
-      responses:
-        "200":
-          description: Users
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/UserSummary"
 
   /columns:
     get:
@@ -456,19 +441,11 @@ components:
 
     BoardMemberInput:
       type: object
-      required: [userId]
+      required: [email]
       properties:
-        userId:
-          type: integer
-
-    UserSummary:
-      type: object
-      required: [id, email]
-      properties:
-        id:
-          type: integer
         email:
           type: string
+          format: email
 
     Column:
       type: object
