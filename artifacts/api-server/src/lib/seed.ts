@@ -4,6 +4,7 @@ import { db, usersTable, boardsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "./logger";
 import { createDefaultBoardForUser, migrateUsersToBoards } from "./boards";
+import { ensureSchema } from "./ensureSchema";
 
 const TEST_EMAIL = "moradiyayogeshg@gmail.com";
 const TEST_PASSWORD = "Yogesh123";
@@ -27,6 +28,7 @@ async function ensureSessionTable() {
 }
 
 export async function seedIfNeeded() {
+  await ensureSchema();
   await ensureSessionTable();
   await migrateUsersToBoards();
 
