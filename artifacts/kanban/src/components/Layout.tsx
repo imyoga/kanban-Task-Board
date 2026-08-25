@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { BarChart2, Plus, LogOut } from "lucide-react";
+import { BarChart2, Plus, LogOut, ChevronRight, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import AddColumnDialog from "@/components/AddColumnDialog";
@@ -17,12 +17,28 @@ export default function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
   const boardId = useBoardIdFromRoute();
   const [addColumnOpen, setAddColumnOpen] = useState(false);
+  const [addColumnBoardId, setAddColumnBoardId] = useState<number | null>(null);
+  const [expandedBoardIds, setExpandedBoardIds] = useState<Set<number>>(() => new Set());
   const [addBoardOpen, setAddBoardOpen] = useState(false);
   const { data: user } = useMe();
   const { data: boards = [] } = useListBoards();
   const logout = useLogout();
 
   const statsHref = boardId ? `/boards/${boardId}/stats` : "/";
+
+  function toggleBoardExpanded(id: number) {
+    setExpandedBoardIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function openAddColumn(boardIdToAdd: number) {
+    setAddColumnBoardId(boardIdToAdd);
+    setAddColumnOpen(true);
+  }
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -40,28 +56,53 @@ export default function Layout({ children }: LayoutProps) {
           {boards.map(board => {
             const href = `/boards/${board.id}`;
             const isActive = boardId === board.id && !location.endsWith("/stats");
+            const isExpanded = expandedBoardIds.has(board.id);
             return (
               <div key={board.id} className="space-y-0.5">
-                <Link href={href}>
-                  <span
-                    className={cn(
-                      "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer",
-                      isActive
-                        ? "bg-sidebar-accent text-white"
-                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-white"
-                    )}
-                  >
-                    <span className="truncate flex-1">{board.name}</span>
-                    {board.isShared && (
-                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 shrink-0">
-                        Shared
-                      </Badge>
-                    )}
-                  </span>
-                </Link>
-                {isActive && (
+                <div
+                  className={cn(
+                    "flex items-center rounded-md transition-colors",
+                    isActive
+                      ? "bg-sidebar-accent text-white"
+                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-white"
+                  )}
+                >
                   <button
-                    onClick={() => setAddColumnOpen(true)}
+                    type="button"
+                    onClick={() => toggleBoardExpanded(board.id)}
+                    className={cn(
+                      "p-2 rounded-md shrink-0 transition-colors",
+                      isActive
+                        ? "text-white hover:bg-sidebar-accent/80"
+                        : "text-sidebar-foreground/50 hover:text-white hover:bg-sidebar-accent/40"
+                    )}
+                    aria-label={isExpanded ? "Collapse board" : "Expand board"}
+                    aria-expanded={isExpanded}
+                  >
+                    {isExpanded ? (
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    ) : (
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                  <Link href={href} className="flex-1 min-w-0">
+                    <span
+                      className={cn(
+                        "flex items-center gap-2 py-2 pr-3 text-sm font-medium cursor-pointer"
+                      )}
+                    >
+                      <span className="truncate flex-1">{board.name}</span>
+                      {board.isShared && (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 shrink-0">
+                          Shared
+                        </Badge>
+                      )}
+                    </span>
+                  </Link>
+                </div>
+                {isExpanded && (
+                  <button
+                    onClick={() => openAddColumn(board.id)}
                     className="w-full flex items-center gap-2 pl-8 pr-3 py-1.5 rounded-md text-xs font-medium text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-white transition-colors"
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -124,11 +165,14 @@ export default function Layout({ children }: LayoutProps) {
         {children}
       </main>
 
-      {boardId && (
+      {addColumnBoardId != null && (
         <AddColumnDialog
           open={addColumnOpen}
-          onOpenChange={setAddColumnOpen}
-          boardId={boardId}
+          onOpenChange={open => {
+            setAddColumnOpen(open);
+            if (!open) setAddColumnBoardId(null);
+          }}
+          boardId={addColumnBoardId}
         />
       )}
       <AddBoardDialog open={addBoardOpen} onOpenChange={setAddBoardOpen} />

@@ -33,9 +33,11 @@ import { useToast } from "@/hooks/use-toast";
 import { getTaskFromDndActive, getColumnFromDndActive, columnDndId } from "@/lib/dnd";
 import { useBoardIdFromRoute } from "@/hooks/useBoardId";
 import { Badge } from "@/components/ui/badge";
+import { useLocation } from "wouter";
 
 export default function BoardPage() {
   const boardId = useBoardIdFromRoute()!;
+  const [, setLocation] = useLocation();
   const { data: boards = [] } = useListBoards();
   const board = boards.find(b => b.id === boardId);
   const { data: columns = [], isLoading: colsLoading } = useListColumns({ boardId });
@@ -359,6 +361,10 @@ export default function BoardPage() {
           board={board}
           open={settingsOpen}
           onOpenChange={setSettingsOpen}
+          onDeleted={() => {
+            const remaining = boards.filter(b => b.id !== boardId);
+            setLocation(remaining[0] ? `/boards/${remaining[0].id}` : "/");
+          }}
         />
       )}
     </>

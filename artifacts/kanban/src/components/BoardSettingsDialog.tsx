@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useUpdateBoard,
+  useDeleteBoard,
   useListBoardMembers,
   useAddBoardMember,
   useRemoveBoardMember,
@@ -35,14 +36,16 @@ interface Props {
   board: Board;
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  onDeleted?: () => void;
 }
 
-export default function BoardSettingsDialog({ board, open, onOpenChange }: Props) {
+export default function BoardSettingsDialog({ board, open, onOpenChange, onDeleted }: Props) {
   const [name, setName] = useState(board.name);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const qc = useQueryClient();
   const { toast } = useToast();
   const updateBoard = useUpdateBoard();
+  const deleteBoard = useDeleteBoard();
   const { data: members = [] } = useListBoardMembers(board.id, {
     query: {
       enabled: open && board.isOwner,
@@ -105,6 +108,24 @@ export default function BoardSettingsDialog({ board, open, onOpenChange }: Props
           toast({ title: "Member removed" });
         },
         onError: () => toast({ title: "Failed to remove member", variant: "destructive" }),
+      }
+    );
+  }
+
+  function handleDelete() {
+    if (!confirm(`Delete board "${board.name}"? All columns and tasks on this board will be permanently removed.`)) {
+      return;
+    }
+    deleteBoard.mutate(
+      { id: board.id },
+      {
+        onSuccess: () => {
+          qc.invalidateQueries({ queryKey: getListBoardsQueryKey() });
+          onOpenChange(false);
+          toast({ title: "Board deleted" });
+          onDeleted?.();
+        },
+        onError: () => toast({ title: "Failed to delete board", variant: "destructive" }),
       }
     );
   }
@@ -175,6 +196,20 @@ export default function BoardSettingsDialog({ board, open, onOpenChange }: Props
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {board.isOwner && (
+          <div className="pt-4 border-t border-border">
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleteBoard.isPending}
+              className="w-full"
+            >
+              {deleteBoard.isPending ? "Deleting..." : "Delete board"}
+            </Button>
           </div>
         )}
 
