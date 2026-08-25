@@ -9,6 +9,39 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface Board {
+  id: number;
+  name: string;
+  isOwner: boolean;
+  isShared: boolean;
+  createdAt: string;
+}
+
+export interface BoardInput {
+  /** @minLength 1 */
+  name?: string;
+}
+
+export interface BoardUpdate {
+  /** @minLength 1 */
+  name: string;
+}
+
+export interface BoardMember {
+  userId: number;
+  email: string;
+  isOwner: boolean;
+}
+
+export interface BoardMemberInput {
+  userId: number;
+}
+
+export interface UserSummary {
+  id: number;
+  email: string;
+}
+
 export interface Column {
   id: number;
   title: string;
@@ -21,6 +54,7 @@ export interface Column {
 export interface ColumnInput {
   /** @minLength 1 */
   title: string;
+  boardId: number;
   color?: string;
   position?: number;
 }
@@ -67,6 +101,7 @@ export const TaskInputPriority = {
 export interface TaskInput {
   /** @minLength 1 */
   title: string;
+  boardId: number;
   description?: string;
   columnId: number;
   priority?: TaskInputPriority;
@@ -114,6 +149,15 @@ export interface TaskStats {
   byPriority: TaskStatsByPriority;
 }
 
+export type ListColumnsParams = {
+  boardId: number;
+};
+
 export type ListTasksParams = {
+  boardId: number;
   columnId?: number;
+};
+
+export type GetTaskStatsParams = {
+  boardId: number;
 };

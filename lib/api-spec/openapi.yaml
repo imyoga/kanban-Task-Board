@@ -10,6 +10,10 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: boards
+    description: Board workspace operations
+  - name: users
+    description: User listing for sharing
   - name: columns
     description: Board column operations
   - name: tasks
@@ -29,11 +33,184 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
 
+  /boards:
+    get:
+      operationId: listBoards
+      tags: [boards]
+      summary: List boards accessible to the current user
+      responses:
+        "200":
+          description: List of boards
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Board"
+    post:
+      operationId: createBoard
+      tags: [boards]
+      summary: Create a new board
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BoardInput"
+      responses:
+        "201":
+          description: Created board
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Board"
+
+  /boards/{id}:
+    patch:
+      operationId: updateBoard
+      tags: [boards]
+      summary: Rename a board (owner only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BoardUpdate"
+      responses:
+        "200":
+          description: Updated board
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Board"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteBoard
+      tags: [boards]
+      summary: Delete a board (owner only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /boards/{id}/members:
+    get:
+      operationId: listBoardMembers
+      tags: [boards]
+      summary: List board members
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Board members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BoardMember"
+        "404":
+          description: Not found
+    post:
+      operationId: addBoardMember
+      tags: [boards]
+      summary: Share board with a user (owner only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BoardMemberInput"
+      responses:
+        "201":
+          description: Member added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BoardMember"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /boards/{id}/members/{userId}:
+    delete:
+      operationId: removeBoardMember
+      tags: [boards]
+      summary: Remove a board member (owner only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Removed
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List other users in the system
+      responses:
+        "200":
+          description: Users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserSummary"
+
   /columns:
     get:
       operationId: listColumns
       tags: [columns]
-      summary: List all columns
+      summary: List all columns for a board
+      parameters:
+        - name: boardId
+          in: query
+          required: true
+          schema:
+            type: integer
       responses:
         "200":
           description: List of columns
@@ -109,6 +286,11 @@ paths:
       tags: [tasks]
       summary: List all tasks
       parameters:
+        - name: boardId
+          in: query
+          required: true
+          schema:
+            type: integer
         - name: columnId
           in: query
           required: false
@@ -145,7 +327,13 @@ paths:
     get:
       operationId: getTaskStats
       tags: [tasks]
-      summary: Get task statistics
+      summary: Get task statistics for a board
+      parameters:
+        - name: boardId
+          in: query
+          required: true
+          schema:
+            type: integer
       responses:
         "200":
           description: Task stats
@@ -225,6 +413,63 @@ components:
       required:
         - status
 
+    Board:
+      type: object
+      required: [id, name, isOwner, isShared, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        isOwner:
+          type: boolean
+        isShared:
+          type: boolean
+        createdAt:
+          type: string
+
+    BoardInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+
+    BoardUpdate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+
+    BoardMember:
+      type: object
+      required: [userId, email, isOwner]
+      properties:
+        userId:
+          type: integer
+        email:
+          type: string
+        isOwner:
+          type: boolean
+
+    BoardMemberInput:
+      type: object
+      required: [userId]
+      properties:
+        userId:
+          type: integer
+
+    UserSummary:
+      type: object
+      required: [id, email]
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+
     Column:
       type: object
       required: [id, title, position, createdAt]
@@ -242,11 +487,13 @@ components:
 
     ColumnInput:
       type: object
-      required: [title]
+      required: [title, boardId]
       properties:
         title:
           type: string
           minLength: 1
+        boardId:
+          type: integer
         color:
           type: string
         position:
@@ -289,11 +536,13 @@ components:
 
     TaskInput:
       type: object
-      required: [title, columnId]
+      required: [title, columnId, boardId]
       properties:
         title:
           type: string
           minLength: 1
+        boardId:
+          type: integer
         description:
           type: string
         columnId:

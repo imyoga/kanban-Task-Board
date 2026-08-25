@@ -9,6 +9,7 @@
 export interface ColumnInput {
   /** @minLength 1 */
   title: string;
+  boardId: number;
   color?: string;
   position?: number;
 }

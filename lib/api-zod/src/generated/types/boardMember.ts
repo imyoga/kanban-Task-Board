@@ -6,7 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ListTasksParams = {
-  boardId: number;
-  columnId?: number;
-};
+export interface BoardMember {
+  userId: number;
+  email: string;
+  isOwner: boolean;
+}

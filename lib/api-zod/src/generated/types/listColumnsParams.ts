@@ -6,7 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ListTasksParams = {
+export type ListColumnsParams = {
   boardId: number;
-  columnId?: number;
 };

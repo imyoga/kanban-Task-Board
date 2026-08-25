@@ -7,17 +7,32 @@ import {
   UpdateColumnBody,
   DeleteColumnParams,
 } from "@workspace/api-zod";
+import { getBoardAccess } from "../lib/boardAccess";
 
 const router = Router();
 
 router.get("/columns", async (req, res) => {
   const userId = req.session.userId!;
+  const boardId = Number(req.query.boardId);
+
+  if (!boardId) {
+    res.status(400).json({ error: "boardId is required" });
+    return;
+  }
+
+  const access = await getBoardAccess(boardId, userId);
+  if (!access) {
+    res.status(404).json({ error: "Board not found" });
+    return;
+  }
+
   const columns = await db
     .select()
     .from(columnsTable)
-    .where(eq(columnsTable.userId, userId))
+    .where(eq(columnsTable.boardId, boardId))
     .orderBy(asc(columnsTable.position));
-  res.json(columns.map(c => ({ ...c, createdAt: c.createdAt.toISOString() })));
+
+  res.json(columns.map((c) => ({ ...c, createdAt: c.createdAt.toISOString() })));
 });
 
 router.post("/columns", async (req, res) => {
@@ -26,17 +41,32 @@ router.post("/columns", async (req, res) => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+
   const userId = req.session.userId!;
-  const { title, color, position } = parsed.data;
+  const { title, color, position, boardId } = parsed.data;
+
+  if (!boardId) {
+    res.status(400).json({ error: "boardId is required" });
+    return;
+  }
+
+  const access = await getBoardAccess(boardId, userId);
+  if (!access || !access.canEdit) {
+    res.status(access ? 403 : 404).json({ error: access ? "Forbidden" : "Board not found" });
+    return;
+  }
+
   const existing = await db
     .select()
     .from(columnsTable)
-    .where(eq(columnsTable.userId, userId));
+    .where(eq(columnsTable.boardId, boardId));
   const pos = position ?? existing.length;
+
   const [col] = await db
     .insert(columnsTable)
-    .values({ userId, title, color, position: pos })
+    .values({ boardId, userId, title, color, position: pos })
     .returning();
+
   res.status(201).json({ ...col, createdAt: col.createdAt.toISOString() });
 });
 
@@ -46,12 +76,30 @@ router.patch("/columns/:id", async (req, res) => {
     res.status(400).json({ error: "Invalid id" });
     return;
   }
+
   const bodyParsed = UpdateColumnBody.safeParse(req.body);
   if (!bodyParsed.success) {
     res.status(400).json({ error: bodyParsed.error.message });
     return;
   }
+
   const userId = req.session.userId!;
+  const [existing] = await db
+    .select()
+    .from(columnsTable)
+    .where(eq(columnsTable.id, paramsParsed.data.id));
+
+  if (!existing) {
+    res.status(404).json({ error: "Column not found" });
+    return;
+  }
+
+  const access = await getBoardAccess(existing.boardId, userId);
+  if (!access || !access.canEdit) {
+    res.status(access ? 403 : 404).json({ error: access ? "Forbidden" : "Board not found" });
+    return;
+  }
+
   const updates: Record<string, unknown> = {};
   if (bodyParsed.data.title !== undefined) updates.title = bodyParsed.data.title;
   if (bodyParsed.data.color !== undefined) updates.color = bodyParsed.data.color;
@@ -60,12 +108,9 @@ router.patch("/columns/:id", async (req, res) => {
   const [col] = await db
     .update(columnsTable)
     .set(updates)
-    .where(and(eq(columnsTable.id, paramsParsed.data.id), eq(columnsTable.userId, userId)))
+    .where(eq(columnsTable.id, paramsParsed.data.id))
     .returning();
-  if (!col) {
-    res.status(404).json({ error: "Column not found" });
-    return;
-  }
+
   res.json({ ...col, createdAt: col.createdAt.toISOString() });
 });
 
@@ -75,15 +120,25 @@ router.delete("/columns/:id", async (req, res) => {
     res.status(400).json({ error: "Invalid id" });
     return;
   }
+
   const userId = req.session.userId!;
-  const [col] = await db
-    .delete(columnsTable)
-    .where(and(eq(columnsTable.id, parsed.data.id), eq(columnsTable.userId, userId)))
-    .returning();
-  if (!col) {
+  const [existing] = await db
+    .select()
+    .from(columnsTable)
+    .where(eq(columnsTable.id, parsed.data.id));
+
+  if (!existing) {
     res.status(404).json({ error: "Column not found" });
     return;
   }
+
+  const access = await getBoardAccess(existing.boardId, userId);
+  if (!access || !access.canEdit) {
+    res.status(access ? 403 : 404).json({ error: access ? "Forbidden" : "Board not found" });
+    return;
+  }
+
+  await db.delete(columnsTable).where(eq(columnsTable.id, parsed.data.id));
   res.status(204).send();
 });
 

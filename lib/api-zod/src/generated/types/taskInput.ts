@@ -10,6 +10,7 @@ import type { TaskInputPriority } from "./taskInputPriority";
 export interface TaskInput {
   /** @minLength 1 */
   title: string;
+  boardId: number;
   description?: string;
   columnId: number;
   priority?: TaskInputPriority;

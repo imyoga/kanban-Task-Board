@@ -16,8 +16,100 @@ export const HealthCheckResponse = zod.object({
 });
 
 /**
- * @summary List all columns
+ * @summary List boards accessible to the current user
  */
+export const ListBoardsResponseItem = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  isOwner: zod.boolean(),
+  isShared: zod.boolean(),
+  createdAt: zod.string(),
+});
+export const ListBoardsResponse = zod.array(ListBoardsResponseItem);
+
+/**
+ * @summary Create a new board
+ */
+
+export const CreateBoardBody = zod.object({
+  name: zod.string().min(1).optional(),
+});
+
+/**
+ * @summary Rename a board (owner only)
+ */
+export const UpdateBoardParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateBoardBody = zod.object({
+  name: zod.string().min(1),
+});
+
+export const UpdateBoardResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  isOwner: zod.boolean(),
+  isShared: zod.boolean(),
+  createdAt: zod.string(),
+});
+
+/**
+ * @summary Delete a board (owner only)
+ */
+export const DeleteBoardParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary List board members
+ */
+export const ListBoardMembersParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListBoardMembersResponseItem = zod.object({
+  userId: zod.number(),
+  email: zod.string(),
+  isOwner: zod.boolean(),
+});
+export const ListBoardMembersResponse = zod.array(ListBoardMembersResponseItem);
+
+/**
+ * @summary Share board with a user (owner only)
+ */
+export const AddBoardMemberParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const AddBoardMemberBody = zod.object({
+  userId: zod.number(),
+});
+
+/**
+ * @summary Remove a board member (owner only)
+ */
+export const RemoveBoardMemberParams = zod.object({
+  id: zod.coerce.number(),
+  userId: zod.coerce.number(),
+});
+
+/**
+ * @summary List other users in the system
+ */
+export const ListUsersResponseItem = zod.object({
+  id: zod.number(),
+  email: zod.string(),
+});
+export const ListUsersResponse = zod.array(ListUsersResponseItem);
+
+/**
+ * @summary List all columns for a board
+ */
+export const ListColumnsQueryParams = zod.object({
+  boardId: zod.coerce.number(),
+});
+
 export const ListColumnsResponseItem = zod.object({
   id: zod.number(),
   title: zod.string(),
@@ -33,6 +125,7 @@ export const ListColumnsResponse = zod.array(ListColumnsResponseItem);
 
 export const CreateColumnBody = zod.object({
   title: zod.string().min(1),
+  boardId: zod.number(),
   color: zod.string().optional(),
   position: zod.number().optional(),
 });
@@ -69,6 +162,7 @@ export const DeleteColumnParams = zod.object({
  * @summary List all tasks
  */
 export const ListTasksQueryParams = zod.object({
+  boardId: zod.coerce.number(),
   columnId: zod.coerce.number().optional(),
 });
 
@@ -93,6 +187,7 @@ export const createTaskBodyPriorityDefault = `medium`;
 
 export const CreateTaskBody = zod.object({
   title: zod.string().min(1),
+  boardId: zod.number(),
   description: zod.string().optional(),
   columnId: zod.number(),
   priority: zod
@@ -103,8 +198,12 @@ export const CreateTaskBody = zod.object({
 });
 
 /**
- * @summary Get task statistics
+ * @summary Get task statistics for a board
  */
+export const GetTaskStatsQueryParams = zod.object({
+  boardId: zod.coerce.number(),
+});
+
 export const GetTaskStatsResponse = zod.object({
   total: zod.number(),
   overdue: zod.number(),

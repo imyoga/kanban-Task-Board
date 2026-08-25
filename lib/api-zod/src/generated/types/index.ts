@@ -6,10 +6,17 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./board";
+export * from "./boardInput";
+export * from "./boardMember";
+export * from "./boardMemberInput";
+export * from "./boardUpdate";
 export * from "./column";
 export * from "./columnInput";
 export * from "./columnUpdate";
+export * from "./getTaskStatsParams";
 export * from "./healthStatus";
+export * from "./listColumnsParams";
 export * from "./listTasksParams";
 export * from "./task";
 export * from "./taskInput";
@@ -20,3 +27,4 @@ export * from "./taskStatsByColumnItem";
 export * from "./taskStatsByPriority";
 export * from "./taskUpdate";
 export * from "./taskUpdatePriority";
+export * from "./userSummary";

@@ -17,15 +17,23 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  Board,
+  BoardInput,
+  BoardMember,
+  BoardMemberInput,
+  BoardUpdate,
   Column,
   ColumnInput,
   ColumnUpdate,
+  GetTaskStatsParams,
   HealthStatus,
+  ListColumnsParams,
   ListTasksParams,
   Task,
   TaskInput,
   TaskStats,
   TaskUpdate,
+  UserSummary,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -114,29 +122,29 @@ export function useHealthCheck<
 }
 
 /**
- * @summary List all columns
+ * @summary List boards accessible to the current user
  */
-export const getListColumnsUrl = () => {
-  return `/api/columns`;
+export const getListBoardsUrl = () => {
+  return `/api/boards`;
 };
 
-export const listColumns = async (options?: RequestInit): Promise<Column[]> => {
-  return customFetch<Column[]>(getListColumnsUrl(), {
+export const listBoards = async (options?: RequestInit): Promise<Board[]> => {
+  return customFetch<Board[]>(getListBoardsUrl(), {
     ...options,
     method: "GET",
   });
 };
 
-export const getListColumnsQueryKey = () => {
-  return [`/api/columns`] as const;
+export const getListBoardsQueryKey = () => {
+  return [`/api/boards`] as const;
 };
 
-export const getListColumnsQueryOptions = <
-  TData = Awaited<ReturnType<typeof listColumns>>,
+export const getListBoardsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listBoards>>,
   TError = ErrorType<unknown>,
 >(options?: {
   query?: UseQueryOptions<
-    Awaited<ReturnType<typeof listColumns>>,
+    Awaited<ReturnType<typeof listBoards>>,
     TError,
     TData
   >;
@@ -144,11 +152,685 @@ export const getListColumnsQueryOptions = <
 }) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getListColumnsQueryKey();
+  const queryKey = queryOptions?.queryKey ?? getListBoardsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listBoards>>> = ({
+    signal,
+  }) => listBoards({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listBoards>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListBoardsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listBoards>>
+>;
+export type ListBoardsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List boards accessible to the current user
+ */
+
+export function useListBoards<
+  TData = Awaited<ReturnType<typeof listBoards>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listBoards>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListBoardsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a new board
+ */
+export const getCreateBoardUrl = () => {
+  return `/api/boards`;
+};
+
+export const createBoard = async (
+  boardInput: BoardInput,
+  options?: RequestInit,
+): Promise<Board> => {
+  return customFetch<Board>(getCreateBoardUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(boardInput),
+  });
+};
+
+export const getCreateBoardMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createBoard>>,
+    TError,
+    { data: BodyType<BoardInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createBoard>>,
+  TError,
+  { data: BodyType<BoardInput> },
+  TContext
+> => {
+  const mutationKey = ["createBoard"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createBoard>>,
+    { data: BodyType<BoardInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createBoard(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateBoardMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createBoard>>
+>;
+export type CreateBoardMutationBody = BodyType<BoardInput>;
+export type CreateBoardMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a new board
+ */
+export const useCreateBoard = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createBoard>>,
+    TError,
+    { data: BodyType<BoardInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createBoard>>,
+  TError,
+  { data: BodyType<BoardInput> },
+  TContext
+> => {
+  return useMutation(getCreateBoardMutationOptions(options));
+};
+
+/**
+ * @summary Rename a board (owner only)
+ */
+export const getUpdateBoardUrl = (id: number) => {
+  return `/api/boards/${id}`;
+};
+
+export const updateBoard = async (
+  id: number,
+  boardUpdate: BoardUpdate,
+  options?: RequestInit,
+): Promise<Board> => {
+  return customFetch<Board>(getUpdateBoardUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(boardUpdate),
+  });
+};
+
+export const getUpdateBoardMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateBoard>>,
+    TError,
+    { id: number; data: BodyType<BoardUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateBoard>>,
+  TError,
+  { id: number; data: BodyType<BoardUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateBoard"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateBoard>>,
+    { id: number; data: BodyType<BoardUpdate> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateBoard(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateBoardMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateBoard>>
+>;
+export type UpdateBoardMutationBody = BodyType<BoardUpdate>;
+export type UpdateBoardMutationError = ErrorType<void>;
+
+/**
+ * @summary Rename a board (owner only)
+ */
+export const useUpdateBoard = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateBoard>>,
+    TError,
+    { id: number; data: BodyType<BoardUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateBoard>>,
+  TError,
+  { id: number; data: BodyType<BoardUpdate> },
+  TContext
+> => {
+  return useMutation(getUpdateBoardMutationOptions(options));
+};
+
+/**
+ * @summary Delete a board (owner only)
+ */
+export const getDeleteBoardUrl = (id: number) => {
+  return `/api/boards/${id}`;
+};
+
+export const deleteBoard = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteBoardUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteBoardMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteBoard>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteBoard>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteBoard"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteBoard>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteBoard(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteBoardMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteBoard>>
+>;
+
+export type DeleteBoardMutationError = ErrorType<void>;
+
+/**
+ * @summary Delete a board (owner only)
+ */
+export const useDeleteBoard = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteBoard>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteBoard>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteBoardMutationOptions(options));
+};
+
+/**
+ * @summary List board members
+ */
+export const getListBoardMembersUrl = (id: number) => {
+  return `/api/boards/${id}/members`;
+};
+
+export const listBoardMembers = async (
+  id: number,
+  options?: RequestInit,
+): Promise<BoardMember[]> => {
+  return customFetch<BoardMember[]>(getListBoardMembersUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListBoardMembersQueryKey = (id: number) => {
+  return [`/api/boards/${id}/members`] as const;
+};
+
+export const getListBoardMembersQueryOptions = <
+  TData = Awaited<ReturnType<typeof listBoardMembers>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listBoardMembers>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListBoardMembersQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listBoardMembers>>
+  > = ({ signal }) => listBoardMembers(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listBoardMembers>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListBoardMembersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listBoardMembers>>
+>;
+export type ListBoardMembersQueryError = ErrorType<void>;
+
+/**
+ * @summary List board members
+ */
+
+export function useListBoardMembers<
+  TData = Awaited<ReturnType<typeof listBoardMembers>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listBoardMembers>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListBoardMembersQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Share board with a user (owner only)
+ */
+export const getAddBoardMemberUrl = (id: number) => {
+  return `/api/boards/${id}/members`;
+};
+
+export const addBoardMember = async (
+  id: number,
+  boardMemberInput: BoardMemberInput,
+  options?: RequestInit,
+): Promise<BoardMember> => {
+  return customFetch<BoardMember>(getAddBoardMemberUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(boardMemberInput),
+  });
+};
+
+export const getAddBoardMemberMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof addBoardMember>>,
+    TError,
+    { id: number; data: BodyType<BoardMemberInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof addBoardMember>>,
+  TError,
+  { id: number; data: BodyType<BoardMemberInput> },
+  TContext
+> => {
+  const mutationKey = ["addBoardMember"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof addBoardMember>>,
+    { id: number; data: BodyType<BoardMemberInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return addBoardMember(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AddBoardMemberMutationResult = NonNullable<
+  Awaited<ReturnType<typeof addBoardMember>>
+>;
+export type AddBoardMemberMutationBody = BodyType<BoardMemberInput>;
+export type AddBoardMemberMutationError = ErrorType<void>;
+
+/**
+ * @summary Share board with a user (owner only)
+ */
+export const useAddBoardMember = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof addBoardMember>>,
+    TError,
+    { id: number; data: BodyType<BoardMemberInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof addBoardMember>>,
+  TError,
+  { id: number; data: BodyType<BoardMemberInput> },
+  TContext
+> => {
+  return useMutation(getAddBoardMemberMutationOptions(options));
+};
+
+/**
+ * @summary Remove a board member (owner only)
+ */
+export const getRemoveBoardMemberUrl = (id: number, userId: number) => {
+  return `/api/boards/${id}/members/${userId}`;
+};
+
+export const removeBoardMember = async (
+  id: number,
+  userId: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getRemoveBoardMemberUrl(id, userId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getRemoveBoardMemberMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof removeBoardMember>>,
+    TError,
+    { id: number; userId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof removeBoardMember>>,
+  TError,
+  { id: number; userId: number },
+  TContext
+> => {
+  const mutationKey = ["removeBoardMember"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof removeBoardMember>>,
+    { id: number; userId: number }
+  > = (props) => {
+    const { id, userId } = props ?? {};
+
+    return removeBoardMember(id, userId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RemoveBoardMemberMutationResult = NonNullable<
+  Awaited<ReturnType<typeof removeBoardMember>>
+>;
+
+export type RemoveBoardMemberMutationError = ErrorType<void>;
+
+/**
+ * @summary Remove a board member (owner only)
+ */
+export const useRemoveBoardMember = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof removeBoardMember>>,
+    TError,
+    { id: number; userId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof removeBoardMember>>,
+  TError,
+  { id: number; userId: number },
+  TContext
+> => {
+  return useMutation(getRemoveBoardMemberMutationOptions(options));
+};
+
+/**
+ * @summary List other users in the system
+ */
+export const getListUsersUrl = () => {
+  return `/api/users`;
+};
+
+export const listUsers = async (
+  options?: RequestInit,
+): Promise<UserSummary[]> => {
+  return customFetch<UserSummary[]>(getListUsersUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListUsersQueryKey = () => {
+  return [`/api/users`] as const;
+};
+
+export const getListUsersQueryOptions = <
+  TData = Awaited<ReturnType<typeof listUsers>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof listUsers>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListUsersQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listUsers>>> = ({
+    signal,
+  }) => listUsers({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listUsers>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListUsersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listUsers>>
+>;
+export type ListUsersQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List other users in the system
+ */
+
+export function useListUsers<
+  TData = Awaited<ReturnType<typeof listUsers>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof listUsers>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListUsersQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List all columns for a board
+ */
+export const getListColumnsUrl = (params: ListColumnsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/columns?${stringifiedParams}`
+    : `/api/columns`;
+};
+
+export const listColumns = async (
+  params: ListColumnsParams,
+  options?: RequestInit,
+): Promise<Column[]> => {
+  return customFetch<Column[]>(getListColumnsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListColumnsQueryKey = (params?: ListColumnsParams) => {
+  return [`/api/columns`, ...(params ? [params] : [])] as const;
+};
+
+export const getListColumnsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listColumns>>,
+  TError = ErrorType<unknown>,
+>(
+  params: ListColumnsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listColumns>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListColumnsQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listColumns>>> = ({
     signal,
-  }) => listColumns({ signal, ...requestOptions });
+  }) => listColumns(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listColumns>>,
@@ -163,21 +845,24 @@ export type ListColumnsQueryResult = NonNullable<
 export type ListColumnsQueryError = ErrorType<unknown>;
 
 /**
- * @summary List all columns
+ * @summary List all columns for a board
  */
 
 export function useListColumns<
   TData = Awaited<ReturnType<typeof listColumns>>,
   TError = ErrorType<unknown>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof listColumns>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getListColumnsQueryOptions(options);
+>(
+  params: ListColumnsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listColumns>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListColumnsQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
@@ -446,7 +1131,7 @@ export const useDeleteColumn = <
 /**
  * @summary List all tasks
  */
-export const getListTasksUrl = (params?: ListTasksParams) => {
+export const getListTasksUrl = (params: ListTasksParams) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -463,7 +1148,7 @@ export const getListTasksUrl = (params?: ListTasksParams) => {
 };
 
 export const listTasks = async (
-  params?: ListTasksParams,
+  params: ListTasksParams,
   options?: RequestInit,
 ): Promise<Task[]> => {
   return customFetch<Task[]>(getListTasksUrl(params), {
@@ -480,7 +1165,7 @@ export const getListTasksQueryOptions = <
   TData = Awaited<ReturnType<typeof listTasks>>,
   TError = ErrorType<unknown>,
 >(
-  params?: ListTasksParams,
+  params: ListTasksParams,
   options?: {
     query?: UseQueryOptions<
       Awaited<ReturnType<typeof listTasks>>,
@@ -518,7 +1203,7 @@ export function useListTasks<
   TData = Awaited<ReturnType<typeof listTasks>>,
   TError = ErrorType<unknown>,
 >(
-  params?: ListTasksParams,
+  params: ListTasksParams,
   options?: {
     query?: UseQueryOptions<
       Awaited<ReturnType<typeof listTasks>>,
@@ -624,43 +1309,59 @@ export const useCreateTask = <
 };
 
 /**
- * @summary Get task statistics
+ * @summary Get task statistics for a board
  */
-export const getGetTaskStatsUrl = () => {
-  return `/api/tasks/stats`;
+export const getGetTaskStatsUrl = (params: GetTaskStatsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/tasks/stats?${stringifiedParams}`
+    : `/api/tasks/stats`;
 };
 
 export const getTaskStats = async (
+  params: GetTaskStatsParams,
   options?: RequestInit,
 ): Promise<TaskStats> => {
-  return customFetch<TaskStats>(getGetTaskStatsUrl(), {
+  return customFetch<TaskStats>(getGetTaskStatsUrl(params), {
     ...options,
     method: "GET",
   });
 };
 
-export const getGetTaskStatsQueryKey = () => {
-  return [`/api/tasks/stats`] as const;
+export const getGetTaskStatsQueryKey = (params?: GetTaskStatsParams) => {
+  return [`/api/tasks/stats`, ...(params ? [params] : [])] as const;
 };
 
 export const getGetTaskStatsQueryOptions = <
   TData = Awaited<ReturnType<typeof getTaskStats>>,
   TError = ErrorType<unknown>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof getTaskStats>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}) => {
+>(
+  params: GetTaskStatsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getTaskStats>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetTaskStatsQueryKey();
+  const queryKey = queryOptions?.queryKey ?? getGetTaskStatsQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getTaskStats>>> = ({
     signal,
-  }) => getTaskStats({ signal, ...requestOptions });
+  }) => getTaskStats(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getTaskStats>>,
@@ -675,21 +1376,24 @@ export type GetTaskStatsQueryResult = NonNullable<
 export type GetTaskStatsQueryError = ErrorType<unknown>;
 
 /**
- * @summary Get task statistics
+ * @summary Get task statistics for a board
  */
 
 export function useGetTaskStats<
   TData = Awaited<ReturnType<typeof getTaskStats>>,
   TError = ErrorType<unknown>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof getTaskStats>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetTaskStatsQueryOptions(options);
+>(
+  params: GetTaskStatsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getTaskStats>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetTaskStatsQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
