@@ -9,13 +9,15 @@ import {
   type DragEndEvent,
   type DragOverEvent,
 } from "@dnd-kit/core";
-import { arrayMove } from "@dnd-kit/sortable";
+import { arrayMove, SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListColumns,
   useListTasks,
   useUpdateTask,
+  useUpdateColumn,
   useDeleteTask,
+  getListColumnsQueryKey,
   getListTasksQueryKey,
   getGetTaskStatsQueryKey,
 } from "@workspace/api-client-react";
@@ -26,7 +28,7 @@ import TaskDialog from "@/components/TaskDialog";
 import AddColumnDialog from "@/components/AddColumnDialog";
 import { Plus, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { getTaskFromDndActive } from "@/lib/dnd";
+import { getTaskFromDndActive, getColumnFromDndActive, columnDndId } from "@/lib/dnd";
 
 export default function BoardPage() {
   const { data: columns = [], isLoading: colsLoading } = useListColumns();
@@ -34,16 +36,19 @@ export default function BoardPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const updateTask = useUpdateTask();
+  const updateColumn = useUpdateColumn();
   const deleteTask = useDeleteTask();
 
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [localTasks, setLocalTasks] = useState<Task[] | null>(null);
+  const [localColumns, setLocalColumns] = useState<Column[] | null>(null);
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
   const [addColumnOpen, setAddColumnOpen] = useState(false);
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [defaultColumnId, setDefaultColumnId] = useState<number | undefined>();
 
   const displayTasks = localTasks ?? tasks;
+  const displayColumns = (localColumns ?? columns).sort((a, b) => a.position - b.position);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -74,6 +79,8 @@ export default function BoardPage() {
   function handleDragOver(event: DragOverEvent) {
     const { active, over } = event;
     if (!over) return;
+
+    if (getColumnFromDndActive(active.data.current)) return;
 
     const activeTask = getTaskFromDndActive(active.data.current);
     if (!activeTask) return;
@@ -107,6 +114,54 @@ export default function BoardPage() {
 
     if (!over) {
       setLocalTasks(null);
+      setLocalColumns(null);
+      return;
+    }
+
+    const activeColumn = getColumnFromDndActive(active.data.current);
+    if (activeColumn) {
+      const overColumn = getColumnFromDndActive(over.data.current);
+      const sorted = [...displayColumns];
+      const oldIndex = sorted.findIndex(c => c.id === activeColumn.id);
+      const newIndex = overColumn ? sorted.findIndex(c => c.id === overColumn.id) : oldIndex;
+      if (oldIndex === newIndex || newIndex < 0) {
+        setLocalColumns(null);
+        return;
+      }
+      const reordered = arrayMove(sorted, oldIndex, newIndex).map((c, i) => ({ ...c, position: i }));
+      setLocalColumns(reordered);
+
+      const changed = reordered.filter(c => {
+        const orig = columns.find(o => o.id === c.id);
+        return orig && orig.position !== c.position;
+      });
+
+      if (changed.length === 0) {
+        setLocalColumns(null);
+        return;
+      }
+
+      let completed = 0;
+      let failed = false;
+      for (const col of changed) {
+        updateColumn.mutate(
+          { id: col.id, data: { position: col.position } },
+          {
+            onSuccess: () => {
+              completed += 1;
+              if (completed === changed.length && !failed) {
+                qc.invalidateQueries({ queryKey: getListColumnsQueryKey() });
+                setLocalColumns(null);
+              }
+            },
+            onError: () => {
+              failed = true;
+              setLocalColumns(null);
+              toast({ title: "Failed to reorder columns", variant: "destructive" });
+            },
+          }
+        );
+      }
       return;
     }
 
@@ -219,10 +274,10 @@ export default function BoardPage() {
       <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-background">
         <div>
           <h2 className="text-base font-semibold text-foreground">Board</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">{tasks.length} task{tasks.length !== 1 ? "s" : ""} across {columns.length} column{columns.length !== 1 ? "s" : ""}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{tasks.length} task{tasks.length !== 1 ? "s" : ""} across {displayColumns.length} column{displayColumns.length !== 1 ? "s" : ""}</p>
         </div>
         <button
-          onClick={() => { setEditTask(null); setDefaultColumnId(columns[0]?.id); setTaskDialogOpen(true); }}
+          onClick={() => { setEditTask(null); setDefaultColumnId(displayColumns[0]?.id); setTaskDialogOpen(true); }}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
         >
           <Plus className="w-4 h-4" />
@@ -233,16 +288,18 @@ export default function BoardPage() {
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
         <div className="flex-1 overflow-x-auto px-6 py-5">
           <div className="flex gap-4 h-full items-start">
-            {columns.sort((a, b) => a.position - b.position).map(col => (
-              <KanbanColumn
-                key={col.id}
-                column={col}
-                tasks={getTasksForColumn(col.id)}
-                onAddTask={handleAddTask}
-                onEditTask={handleEditTask}
-                onDeleteTask={handleDeleteTask}
-              />
-            ))}
+            <SortableContext items={displayColumns.map(c => columnDndId(c.id))} strategy={horizontalListSortingStrategy}>
+              {displayColumns.map(col => (
+                <KanbanColumn
+                  key={col.id}
+                  column={col}
+                  tasks={getTasksForColumn(col.id)}
+                  onAddTask={handleAddTask}
+                  onEditTask={handleEditTask}
+                  onDeleteTask={handleDeleteTask}
+                />
+              ))}
+            </SortableContext>
 
             <button
               onClick={() => setAddColumnOpen(true)}
@@ -266,7 +323,7 @@ export default function BoardPage() {
       <TaskDialog
         open={taskDialogOpen}
         onOpenChange={setTaskDialogOpen}
-        columns={columns}
+        columns={displayColumns}
         defaultColumnId={defaultColumnId}
         editTask={editTask}
       />

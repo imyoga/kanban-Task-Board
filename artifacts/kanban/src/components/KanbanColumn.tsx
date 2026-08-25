@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { useDroppable } from "@dnd-kit/core";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Plus, MoreHorizontal, Pencil, Trash2, GripVertical } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useDeleteColumn,
@@ -11,7 +12,6 @@ import {
   getGetTaskStatsQueryKey,
 } from "@workspace/api-client-react";
 import type { Column, Task } from "@workspace/api-client-react";
-import { columnDndId, taskDndId } from "@/lib/dnd";
 import TaskCard from "@/components/TaskCard";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -22,6 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { columnDndId, taskDndId } from "@/lib/dnd";
 
 interface Props {
   column: Column;
@@ -32,7 +33,19 @@ interface Props {
 }
 
 export default function KanbanColumn({ column, tasks, onAddTask, onEditTask, onDeleteTask }: Props) {
-  const { setNodeRef, isOver } = useDroppable({ id: columnDndId(column.id), data: { type: "column", column } });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+    isOver,
+  } = useSortable({
+    id: columnDndId(column.id),
+    data: { type: "column", column },
+  });
+
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(column.title);
 
@@ -40,6 +53,11 @@ export default function KanbanColumn({ column, tasks, onAddTask, onEditTask, onD
   const { toast } = useToast();
   const deleteColumn = useDeleteColumn();
   const updateColumn = useUpdateColumn();
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
 
   function handleDelete() {
     if (!confirm(`Delete column "${column.title}"? All tasks in this column will be removed.`)) return;
@@ -84,13 +102,24 @@ export default function KanbanColumn({ column, tasks, onAddTask, onEditTask, onD
   return (
     <div
       ref={setNodeRef}
+      style={style}
       className={cn(
         "flex flex-col w-72 flex-shrink-0 rounded-xl border border-border bg-muted/50 transition-colors",
-        isOver && "bg-primary/5 border-primary/30"
+        isOver && "bg-primary/5 border-primary/30",
+        isDragging && "opacity-50 shadow-lg ring-2 ring-primary/30"
       )}
     >
       {/* Column header */}
       <div className="flex items-center gap-2 px-3 pt-3 pb-2">
+        <button
+          {...attributes}
+          {...listeners}
+          className="p-0.5 text-muted-foreground/50 hover:text-muted-foreground cursor-grab active:cursor-grabbing flex-shrink-0"
+          aria-label="Drag column"
+        >
+          <GripVertical className="w-3.5 h-3.5" />
+        </button>
+
         <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: accentColor }} />
 
         {editingTitle ? (
