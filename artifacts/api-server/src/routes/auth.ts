@@ -1,8 +1,8 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
-import { db, usersTable, columnsTable } from "@workspace/db";
+import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { DEFAULT_COLUMNS } from "../lib/defaultColumns";
+import { createDefaultBoardForUser } from "../lib/boards";
 
 const router = Router();
 
@@ -59,9 +59,7 @@ router.post("/auth/signup", async (req, res) => {
     .values({ email: normalizedEmail, passwordHash })
     .returning();
 
-  await db.insert(columnsTable).values(
-    DEFAULT_COLUMNS.map((column) => ({ ...column, userId: user.id })),
-  );
+  await createDefaultBoardForUser(user.id);
 
   req.session.userId = user.id;
   req.session.userEmail = user.email;

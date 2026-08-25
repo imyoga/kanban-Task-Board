@@ -1,9 +1,9 @@
 import bcrypt from "bcryptjs";
 import pg from "pg";
-import { db, usersTable, columnsTable } from "@workspace/db";
-import { eq, asc } from "drizzle-orm";
+import { db, usersTable, boardsTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 import { logger } from "./logger";
-import { DEFAULT_COLUMNS } from "./defaultColumns";
+import { createDefaultBoardForUser, migrateUsersToBoards } from "./boards";
 
 const TEST_EMAIL = "moradiyayogeshg@gmail.com";
 const TEST_PASSWORD = "Yogesh123";
@@ -28,7 +28,8 @@ async function ensureSessionTable() {
 
 export async function seedIfNeeded() {
   await ensureSessionTable();
-  // Ensure test user exists
+  await migrateUsersToBoards();
+
   let [user] = await db.select().from(usersTable).where(eq(usersTable.email, TEST_EMAIL));
 
   if (!user) {
@@ -41,18 +42,15 @@ export async function seedIfNeeded() {
     logger.info({ userId: user.id }, "Test user created");
   }
 
-  // Ensure the test user has at least the default columns
-  const existing = await db
+  const [board] = await db
     .select()
-    .from(columnsTable)
-    .where(eq(columnsTable.userId, user.id))
-    .orderBy(asc(columnsTable.position));
+    .from(boardsTable)
+    .where(eq(boardsTable.ownerId, user.id))
+    .limit(1);
 
-  if (existing.length === 0) {
-    logger.info("Seeding default columns for test user...");
-    await db.insert(columnsTable).values(
-      DEFAULT_COLUMNS.map((c) => ({ ...c, userId: user.id })),
-    );
-    logger.info("Default columns created");
+  if (!board) {
+    logger.info("Seeding default board for test user...");
+    await createDefaultBoardForUser(user.id);
+    logger.info("Default board created");
   }
 }
