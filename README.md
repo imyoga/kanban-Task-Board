@@ -24,11 +24,13 @@ cp .env.example .env
 pnpm install
 ```
 
-4. When Postgres is available, push the schema:
+4. When Postgres is available, apply the schema (non-interactive):
 
 ```bash
 pnpm db:push
 ```
+
+This runs Drizzle push in CI mode with `--force` — no rename/create prompts.
 
 ## Run locally
 
@@ -46,7 +48,7 @@ pnpm dev:web
 |---|---|
 | `pnpm dev:api` | Build and start the API server |
 | `pnpm dev:web` | Start the Vite frontend |
-| `pnpm db:push` | Push Drizzle schema to Postgres |
+| `pnpm db:push` | Apply Drizzle schema to Postgres (non-interactive, forced) |
 | `pnpm typecheck` | Typecheck all packages |
 | `pnpm build` | Typecheck + build all packages |
 | `pnpm --filter @workspace/api-spec run codegen` | Regenerate API client from OpenAPI |
