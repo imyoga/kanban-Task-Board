@@ -1,6 +1,6 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
-import { db, usersTable } from "@workspace/db";
+import { db, usersTable, boardsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { createDefaultBoardForUser } from "../lib/boards";
 
@@ -11,6 +11,18 @@ const MIN_PASSWORD_LENGTH = 6;
 
 function normalizeEmail(email: string) {
   return email.toLowerCase().trim();
+}
+
+async function ensureDefaultBoardForUser(userId: number) {
+  const [board] = await db
+    .select()
+    .from(boardsTable)
+    .where(eq(boardsTable.ownerId, userId))
+    .limit(1);
+
+  if (!board) {
+    await createDefaultBoardForUser(userId);
+  }
 }
 
 router.get("/auth/me", (req, res) => {
@@ -85,6 +97,7 @@ router.post("/auth/login", async (req, res) => {
     res.status(401).json({ error: "Invalid email or password" });
     return;
   }
+  await ensureDefaultBoardForUser(user.id);
   req.session.userId = user.id;
   req.session.userEmail = user.email;
   res.json({ id: user.id, email: user.email });

@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getListBoardsQueryKey } from "@workspace/api-client-react";
 
 interface AuthUser {
   id: number;
@@ -67,6 +68,7 @@ export function useLogin() {
       login(email, password),
     onSuccess: (user) => {
       qc.setQueryData(AUTH_QUERY_KEY, user);
+      qc.invalidateQueries({ queryKey: getListBoardsQueryKey() });
     },
   });
 }
@@ -78,6 +80,7 @@ export function useSignup() {
       signup(email, password),
     onSuccess: (user) => {
       qc.setQueryData(AUTH_QUERY_KEY, user);
+      qc.invalidateQueries({ queryKey: getListBoardsQueryKey() });
     },
   });
 }
