@@ -12,6 +12,7 @@
     "dev:fe": "pnpm --filter @workspace/kanban run dev",
 
     "--- PRODUCTION ---": "echo Production Scripts",
+    "deploy": "node ./scripts/deploy.mjs",
     "prod": "pnpm run build && pnpm run start",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "build:fe": "pnpm --filter @workspace/kanban run build",
