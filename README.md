@@ -12,11 +12,7 @@ Full-stack Kanban board: React frontend + Express API + PostgreSQL (Drizzle ORM)
 ## Setup
 
 1. Install [pnpm](https://pnpm.io/) and Node.js 20+
-2. Copy env file and set your DB URL when ready:
-
-```bash
-cp .env.example .env
-```
+2. Configure environment variables in `.env.development` (for local dev) or `.env.production` (for production):
 
 3. Install dependencies:
 

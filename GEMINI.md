@@ -36,9 +36,8 @@ Package manager: **pnpm@9+** with workspaces. Run commands from repo root.
 ```bash
 # Local Development
 pnpm dev              # runs both API server (:5000) and Web app (:5173) concurrently
-pnpm dev:api          # start Express API server in watch mode
-pnpm dev:web          # start Vite frontend dev server
-pnpm dev:be           # build web app and run API server with auto-reload
+pnpm dev:be           # start Express API server in watch mode (:5000)
+pnpm dev:fe           # start Vite frontend dev server (:5173)
 
 # Database
 pnpm db:up            # start local Postgres 16 container via docker compose
