@@ -12,19 +12,20 @@
 
 ### 1. Environment Configuration
 
-Copy example environment variables:
+The repository uses environment-specific config files:
 
-```bash
-cp .env.example .env
-```
+- **Local Development**: `.env.development` (API on port `5000`, UI on port `5173`)
+- **Production Build**: `.env.production` (Single port `45013` serving both API and static UI)
 
-Ensure `.env` contains:
+Both `.env.development` and `.env.production` are pre-configured with:
 
 ```ini
-PORT=5000
+PORT=5000 # (or 45013 in production)
 DATABASE_URL=postgresql://kanban:kanban@127.0.0.1:5432/kanban
-SESSION_SECRET=dev-session-secret-key-at-least-32-chars
-VITE_API_URL=http://localhost:5000
+SESSION_SECRET=your-session-secret-key
+CLIENT_ORIGIN=http://localhost:5173
+SMTP_USER=moradiyayogeshg@gmail.com
+GOOGLE_APP_PASSWORD=mdibubwwckphflkb
 ```
 
 ### 2. Install Dependencies

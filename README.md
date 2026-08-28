@@ -55,9 +55,16 @@ pnpm dev:web
 
 ## Environment
 
-See `.env.example`. Main variables:
+The workspace supports separate environment configuration files:
+
+- `.env.development` — Local development configuration (Dual ports: API on `5000`, Web UI on `5173`).
+- `.env.production` — Production configuration (Single port `45013` serving both API and static frontend bundle).
+
+Main variables:
 
 - `DATABASE_URL` - Postgres connection string
 - `SESSION_SECRET` - Cookie signing secret
-- `PORT` - API port (default `5000`)
-- `BASE_PATH` - Frontend base path (default `/`)
+- `PORT` - API / Production server port
+- `CLIENT_ORIGIN` - Frontend application URL
+- `SMTP_USER` & `GOOGLE_APP_PASSWORD` - Gmail credentials for team invite emails
+

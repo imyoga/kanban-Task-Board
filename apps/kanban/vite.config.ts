@@ -3,13 +3,16 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 
-const frontendPort = 5173;
-
 export default defineConfig(({ mode }) => {
   const envDir = path.resolve(import.meta.dirname, "../..");
   const env = loadEnv(mode, envDir, "");
+  const frontendPort = Number(env.FE_PORT ?? 5173);
   const apiPort = Number(env.PORT ?? 5000);
   const basePath = env.BASE_PATH ?? "/";
+
+  if (Number.isNaN(frontendPort) || frontendPort <= 0) {
+    throw new Error(`Invalid FE_PORT value: "${env.FE_PORT}"`);
+  }
 
   if (Number.isNaN(apiPort) || apiPort <= 0) {
     throw new Error(`Invalid PORT value: "${env.PORT}"`);

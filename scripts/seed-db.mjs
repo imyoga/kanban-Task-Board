@@ -4,10 +4,15 @@ import { fileURLToPath } from "url";
 import fs from "fs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const envPath = join(__dirname, "../.env");
+const mode = process.env.NODE_ENV || "development";
+const candidatePaths = [
+  join(__dirname, `../.env.${mode}`),
+  join(__dirname, "../.env"),
+];
+const envPath = candidatePaths.find((p) => fs.existsSync(p));
 
-// Parse .env if present and process.env is not already populated
-if (fs.existsSync(envPath)) {
+// Parse env file if present and process.env is not already populated
+if (envPath && fs.existsSync(envPath)) {
   const envContent = fs.readFileSync(envPath, "utf-8");
   for (const line of envContent.split("\n")) {
     const trimmed = line.trim();
