@@ -8,6 +8,8 @@
     "dev": "concurrently -n api,web -c blue,green \"pnpm run dev:api\" \"pnpm run dev:web\"",
     "dev:api": "pnpm --filter @workspace/api-server run dev",
     "dev:web": "pnpm --filter @workspace/kanban run dev",
+    "build:web": "pnpm --filter @workspace/kanban run build",
+    "dev:be": "pnpm run build:web && pnpm --filter @workspace/api-server run dev:watch",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --if-present run typecheck",

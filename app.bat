@@ -1,3 +1,3 @@
-pnpm --filter @workspace/api-server run dev:watch
+pnpm dev:be
 
 cmd /k
