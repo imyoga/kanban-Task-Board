@@ -10,6 +10,7 @@ import {
   DeleteTaskParams,
 } from "@workspace/api-zod";
 import { getBoardAccess, getTeamForBoard } from "../lib/boardAccess";
+import { applyTaskMove } from "../lib/taskOrder";
 
 const router = Router();
 
@@ -137,7 +138,7 @@ router.get("/tasks", async (req, res) => {
     query = query.where(eq(tasksTable.boardId, boardId));
   }
 
-  const tasks = await query.orderBy(asc(tasksTable.position));
+  const tasks = await query.orderBy(asc(tasksTable.position), asc(tasksTable.id));
   const assigneeMap = await loadAssignees(
     tasks.map((t) => t.assigneeId).filter((id): id is number => id != null),
   );
@@ -306,6 +307,28 @@ router.patch("/tasks/:id", async (req, res) => {
       res.status(400).json({ error: "Invalid column for board" });
       return;
     }
+  }
+
+  if (body.columnId !== undefined || body.position !== undefined) {
+    const newColumnId = body.columnId ?? existing.columnId;
+    const newPosition = body.position ?? existing.position;
+
+    try {
+      await applyTaskMove(existing.id, newColumnId, newPosition);
+    } catch {
+      res.status(404).json({ error: "Task not found" });
+      return;
+    }
+
+    const [task] = await db.select().from(tasksTable).where(eq(tasksTable.id, paramsParsed.data.id));
+    let assignee: UserRow | null = null;
+    if (task.assigneeId) {
+      const [u] = await db.select().from(usersTable).where(eq(usersTable.id, task.assigneeId));
+      assignee = u ?? null;
+    }
+
+    res.json(serializeTask(task, assignee));
+    return;
   }
 
   const [task] = await db

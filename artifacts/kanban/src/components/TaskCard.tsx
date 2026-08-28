@@ -37,8 +37,8 @@ function TaskCard({ task, onEdit, onDelete }: Props) {
   });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+    transform: isDragging ? undefined : CSS.Transform.toString(transform),
+    transition: isDragging ? undefined : transition,
   };
 
   const overdue = isOverdue(task.dueDate);
@@ -48,16 +48,19 @@ function TaskCard({ task, onEdit, onDelete }: Props) {
     <div
       ref={setNodeRef}
       style={style}
+      onClick={() => onEdit(task)}
       className={cn(
-        "bg-card border border-card-border rounded-lg p-3 shadow-sm group cursor-default",
+        "bg-card border border-card-border rounded-lg p-3 shadow-sm group cursor-pointer",
         "transition-shadow hover:shadow-md",
         isDragging && "opacity-40 shadow-xl ring-2 ring-primary/40"
       )}
     >
       <div className="flex items-start gap-2">
         <button
+          type="button"
           {...attributes}
           {...listeners}
+          onClick={(e) => e.stopPropagation()}
           className="mt-0.5 p-0.5 text-muted-foreground/40 hover:text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing flex-shrink-0"
         >
           <GripVertical className="w-3.5 h-3.5" />
@@ -107,13 +110,21 @@ function TaskCard({ task, onEdit, onDelete }: Props) {
 
         <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
           <button
-            onClick={() => onEdit(task)}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(task);
+            }}
             className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors"
           >
             <Pencil className="w-3 h-3" />
           </button>
           <button
-            onClick={() => onDelete(task.id)}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(task.id);
+            }}
             className="p-1 text-muted-foreground hover:text-destructive rounded transition-colors"
           >
             <Trash2 className="w-3 h-3" />

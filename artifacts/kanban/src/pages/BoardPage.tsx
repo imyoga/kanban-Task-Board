@@ -3,11 +3,13 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
+  closestCorners,
   useSensor,
   useSensors,
   type DragStartEvent,
   type DragEndEvent,
   type DragOverEvent,
+  type DragCancelEvent,
 } from "@dnd-kit/core";
 import { arrayMove, SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import { useQueryClient } from "@tanstack/react-query";
@@ -30,13 +32,20 @@ import AddColumnDialog from "@/components/AddColumnDialog";
 import BoardSettingsDialog from "@/components/BoardSettingsDialog";
 import { Plus, Loader2, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { getTaskFromDndActive, getColumnFromDndActive, columnDndId } from "@/lib/dnd";
+import { getTaskFromDndActive, getColumnFromDndActive, columnDndId, resolveTargetColumnId, computeTaskInsertIndex } from "@/lib/dnd";
 import { useBoardIdFromRoute } from "@/hooks/useBoardId";
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
 
 function normalizeTasks(tasks: Task[]) {
-  return tasks
+  const seen = new Set<number>();
+  const unique = tasks.filter((task) => {
+    if (seen.has(task.id)) return false;
+    seen.add(task.id);
+    return true;
+  });
+
+  return unique
     .map((task) => ({ ...task }))
     .sort((left, right) =>
       left.columnId === right.columnId
@@ -65,33 +74,38 @@ function projectTaskMove(
   taskList: Task[],
   activeTaskId: number,
   targetColumnId: number,
-  targetTaskId?: number,
+  insertIndex?: number,
 ) {
   const sourceTask = taskList.find((task) => task.id === activeTaskId);
   if (!sourceTask) return taskList;
 
   const remaining = taskList.filter((task) => task.id !== activeTaskId);
-  const sourceTasks = remaining
-    .filter((task) => task.columnId === sourceTask.columnId)
-    .sort((left, right) => left.position - right.position || left.id - right.id);
   const targetTasks = remaining
     .filter((task) => task.columnId === targetColumnId)
     .sort((left, right) => left.position - right.position || left.id - right.id);
 
-  const insertIndex =
-    targetTaskId == null
+  const nextInsertIndex =
+    insertIndex == null
       ? targetTasks.length
-      : Math.max(
-          0,
-          targetTasks.findIndex((task) => task.id === targetTaskId),
-        );
+      : Math.max(0, Math.min(insertIndex, targetTasks.length));
 
   const movedTask = { ...sourceTask, columnId: targetColumnId };
-  const nextSourceTasks = sourceTasks.map((task, index) => ({ ...task, position: index }));
   const nextTargetTasks = [...targetTasks];
-  nextTargetTasks.splice(insertIndex, 0, movedTask);
+  nextTargetTasks.splice(nextInsertIndex, 0, movedTask);
+  const reindexedTargetTasks = nextTargetTasks.map((task, index) => ({
+    ...task,
+    position: index,
+  }));
 
-  const reindexedTargetTasks = nextTargetTasks.map((task, index) => ({ ...task, position: index }));
+  if (sourceTask.columnId === targetColumnId) {
+    const otherTasks = remaining.filter((task) => task.columnId !== targetColumnId);
+    return normalizeTasks([...otherTasks, ...reindexedTargetTasks]);
+  }
+
+  const sourceTasks = remaining
+    .filter((task) => task.columnId === sourceTask.columnId)
+    .sort((left, right) => left.position - right.position || left.id - right.id);
+  const nextSourceTasks = sourceTasks.map((task, index) => ({ ...task, position: index }));
   const untouchedTasks = remaining.filter(
     (task) => task.columnId !== sourceTask.columnId && task.columnId !== targetColumnId,
   );
@@ -134,15 +148,16 @@ export default function BoardPage() {
       .sort((left, right) => left.position - right.position || left.id - right.id);
   }, [displayTasks]);
 
-  function resolveTargetColumnId(over: DragOverEvent["over"] | DragEndEvent["over"]): number | undefined {
-    if (!over) return undefined;
-    if (over.data.current?.type === "column") {
-      return (over.data.current.column as Column).id;
-    }
-    if (over.data.current?.type === "task") {
-      return (over.data.current.task as Task).columnId;
-    }
-    return undefined;
+  function projectTaskDrop(
+    event: DragOverEvent | DragEndEvent,
+    taskList: Task[],
+    activeTaskId: number,
+    targetColumnId: number,
+  ) {
+    const columnTasks = taskList.filter((task) => task.columnId === targetColumnId);
+    const insertIndex = computeTaskInsertIndex(event, columnTasks, activeTaskId);
+    if (insertIndex === undefined) return taskList;
+    return projectTaskMove(taskList, activeTaskId, targetColumnId, insertIndex);
   }
 
   function handleDragStart(event: DragStartEvent) {
@@ -160,18 +175,22 @@ export default function BoardPage() {
     if (!activeTask) return;
 
     const targetColumnId = resolveTargetColumnId(over);
-    if (targetColumnId === undefined || targetColumnId === activeTask.columnId) return;
+    if (targetColumnId === undefined) return;
 
     setLocalTasks((prev) => {
       const base = prev ?? tasks;
-      const projected = projectTaskMove(
-        base,
-        activeTask.id,
-        targetColumnId,
-        over.data.current?.type === "task" ? (over.data.current.task as Task).id : undefined,
-      );
+      const currentTask = base.find((task) => task.id === activeTask.id);
+      if (!currentTask) return prev;
+
+      const projected = projectTaskDrop(event, base, activeTask.id, targetColumnId);
       return sameTaskLayout(base, projected) ? prev : projected;
     });
+  }
+
+  function handleDragCancel(_event: DragCancelEvent) {
+    setActiveTask(null);
+    setLocalTasks(null);
+    setLocalColumns(null);
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -239,18 +258,20 @@ export default function BoardPage() {
 
     const current = localTasks ?? tasks;
     const targetColumnId = resolveTargetColumnId(over) ?? activeTaskItem.columnId;
-    const overIsTask = over.data.current?.type === "task";
-    const overTask = overIsTask ? (over.data.current!.task as Task) : undefined;
-
-    const reordered = projectTaskMove(
-      current,
-      activeTaskItem.id,
-      targetColumnId,
-      overIsTask ? overTask?.id : undefined,
-    );
+    const reordered = projectTaskDrop(event, current, activeTaskItem.id, targetColumnId);
 
     const finalTask = reordered.find((task) => task.id === activeTaskItem.id);
     if (!finalTask) {
+      setLocalTasks(null);
+      return;
+    }
+
+    const originalTask = tasks.find((task) => task.id === activeTaskItem.id);
+    if (
+      originalTask &&
+      originalTask.columnId === finalTask.columnId &&
+      originalTask.position === finalTask.position
+    ) {
       setLocalTasks(null);
       return;
     }
@@ -339,7 +360,7 @@ export default function BoardPage() {
         </div>
       </div>
 
-      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
+      <DndContext collisionDetection={closestCorners} sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
         <div className="flex-1 overflow-x-auto px-6 py-5">
           <div className="flex gap-4 h-full items-start">
             <SortableContext items={displayColumns.map(c => columnDndId(c.id))} strategy={horizontalListSortingStrategy}>
