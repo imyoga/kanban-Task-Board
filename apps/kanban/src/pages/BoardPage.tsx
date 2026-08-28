@@ -146,31 +146,39 @@ export default function BoardPage() {
     (args) => {
       // 1. First, check for pointer collisions directly under cursor
       const pointerCollisions = pointerWithin(args);
-      const intersections =
-        pointerCollisions.length > 0
-          ? pointerCollisions
-          : rectIntersection(args);
 
-      let overId = getFirstCollision(intersections, "id");
+      if (pointerCollisions.length > 0) {
+        // Prioritize task card under pointer over column container background
+        const taskCollision = pointerCollisions.find((c) =>
+          String(c.id).startsWith("task-")
+        );
+        if (taskCollision) {
+          lastOverId.current = taskCollision.id;
+          return [{ id: taskCollision.id }];
+        }
+
+        const columnCollision = pointerCollisions.find((c) =>
+          String(c.id).startsWith("column-")
+        );
+        if (columnCollision) {
+          lastOverId.current = columnCollision.id;
+          return [{ id: columnCollision.id }];
+        }
+
+        lastOverId.current = pointerCollisions[0].id;
+        return [{ id: pointerCollisions[0].id }];
+      }
+
+      // 2. Fall back to rectIntersection when dragging across gaps between columns
+      const rectCollisions = rectIntersection(args);
+      const overId = getFirstCollision(rectCollisions, "id");
 
       if (overId != null) {
-        // If hovering over a column, check if pointer is over any specific task inside that column
-        if (String(overId).startsWith("column-")) {
-          const itemCollisions = closestCorners({
-            ...args,
-            droppableContainers: args.droppableContainers.filter(
-              (c) => c.id !== overId && String(c.id).startsWith("task-")
-            ),
-          });
-          if (itemCollisions.length > 0) {
-            overId = itemCollisions[0].id;
-          }
-        }
         lastOverId.current = overId;
         return [{ id: overId }];
       }
 
-      // If dragging outside any valid container, fallback to last known over container to prevent thrashing
+      // 3. Fallback to last valid container ID to prevent thrashing/flickering
       if (lastOverId.current) {
         return [{ id: lastOverId.current }];
       }
