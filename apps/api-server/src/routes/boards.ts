@@ -3,7 +3,7 @@ import { db, boardsTable, boardMembersTable, teamsTable, teamMembersTable, users
 import { eq, and } from "drizzle-orm";
 import { getBoardAccess } from "../lib/boardAccess";
 import { createDefaultBoardForUser, seedDefaultColumnsForBoard } from "../lib/boards";
-import { addBoardClient, broadcastBoardEvent } from "../lib/boardEvents";
+import { broadcastBoardEvent } from "../lib/boardEvents";
 
 const router = Router();
 
@@ -23,25 +23,6 @@ function serializeBoard(board: typeof boardsTable.$inferSelect, userId: number) 
     createdAt: board.createdAt.toISOString(),
   };
 }
-
-router.get("/boards/:id/events", async (req, res) => {
-  const boardId = Number(req.params.id);
-  if (!boardId || isNaN(boardId)) {
-    res.status(400).json({ error: "Invalid board id" });
-    return;
-  }
-
-  const userId = req.session.userId!;
-  const access = await getBoardAccess(boardId, userId);
-
-  if (!access) {
-    res.status(404).json({ error: "Board not found" });
-    return;
-  }
-
-  const cleanup = addBoardClient(boardId, userId, res);
-  req.on("close", cleanup);
-});
 
 router.get("/boards", async (req, res) => {
   const userId = req.session.userId!;

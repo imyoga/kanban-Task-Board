@@ -1,6 +1,8 @@
+import http from "node:http";
 import app from "./app";
 import { logger } from "./lib/logger";
 import { seedIfNeeded } from "./lib/seed";
+import { setupWebSocketServer } from "./lib/boardEvents";
 
 const port = Number(process.env.PORT ?? 5000);
 
@@ -15,11 +17,10 @@ try {
   process.exit(1);
 }
 
-app.listen(port, (err) => {
-  if (err) {
-    logger.error({ err }, "Error listening on port");
-    process.exit(1);
-  }
+const server = http.createServer(app);
 
-  logger.info({ port }, "Server listening");
+setupWebSocketServer(server);
+
+server.listen(port, () => {
+  logger.info({ port }, "Server listening with WebSocket on /ws");
 });

@@ -27,19 +27,14 @@ const newServerBlock = `# Kanban Task Board -> port 45013 (backend serves fronte
         location / {
             proxy_pass         http://127.0.0.1:45013;
             proxy_http_version 1.1;
-            proxy_set_header   Connection "";
+            proxy_set_header   Upgrade $http_upgrade;
+            proxy_set_header   Connection $connection_upgrade;
             proxy_set_header   Host $host;
             proxy_set_header   X-Real-IP $remote_addr;
             proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header   X-Forwarded-Proto $scheme;
-            proxy_set_header   Accept-Encoding "";
             proxy_read_timeout 86400s;
             proxy_send_timeout 86400s;
-            proxy_connect_timeout 300s;
-            proxy_buffering    off;
-            proxy_cache        off;
-            chunked_transfer_encoding on;
-            gzip               off;
         }
 
         error_page   500 502 503 504  /50x.html;
@@ -51,7 +46,7 @@ const newServerBlock = `# Kanban Task Board -> port 45013 (backend serves fronte
 if (serverBlockRegex.test(content)) {
   content = content.replace(serverBlockRegex, newServerBlock);
   fs.writeFileSync(nginxConf, content, "utf8");
-  console.log("✓ Updated Kanban server block in nginx.conf for SSE streaming.");
+  console.log("✓ Updated Kanban server block in nginx.conf for WebSocket proxying.");
 } else {
   console.log("Could not find matching Kanban server block to replace.");
 }

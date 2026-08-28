@@ -34,7 +34,12 @@ interface UseBoardEventsOptions {
   onRemoteEvent?: (event: BoardEvent) => void;
 }
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+function getWebSocketUrl(): string {
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const host = window.location.host;
+  const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+  return `${protocol}//${host}${base}/ws`;
+}
 
 export function useBoardEvents({
   boardId,
@@ -88,61 +93,94 @@ export function useBoardEvents({
   }, [isInteracting, boardId, triggerInvalidation]);
 
   useEffect(() => {
-    if (!boardId || typeof EventSource === "undefined") {
+    if (!boardId || typeof WebSocket === "undefined") {
       setStatus("disconnected");
       return;
     }
 
-    setStatus("connecting");
-    const url = `${BASE}/api/boards/${boardId}/events`;
-    const es = new EventSource(url, { withCredentials: true });
+    let socket: WebSocket | null = null;
+    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+    let isDisposed = false;
 
-    es.onopen = () => {
-      setStatus("connected");
-    };
+    function connect() {
+      if (isDisposed) return;
+      setStatus("connecting");
 
-    es.addEventListener("connected", () => {
-      setStatus("connected");
-    });
-
-    es.addEventListener("message", (e: MessageEvent) => {
-      setStatus("connected");
       try {
-        const payload: BoardEvent = JSON.parse(e.data);
+        const wsUrl = getWebSocketUrl();
+        socket = new WebSocket(wsUrl);
 
-        // Echo suppression: Ignore events triggered by the current user
-        // (the current user already has optimistic updates and mutation callbacks)
-        if (meIdRef.current && payload.actorId === meIdRef.current) {
-          return;
-        }
+        socket.onopen = () => {
+          if (isDisposed) return;
+          socket?.send(JSON.stringify({ type: "subscribe", boardId }));
+          setStatus("connected");
+        };
 
-        setLastEventTime(new Date());
-        onRemoteEventRef.current?.(payload);
+        socket.onmessage = (e: MessageEvent) => {
+          if (isDisposed) return;
+          try {
+            const data = JSON.parse(e.data);
 
-        // If the user is currently dragging or interacting, buffer the event
-        if (isInteractingRef.current) {
-          hasBufferedEventRef.current = true;
-          return;
-        }
+            if (data.type === "connected") {
+              setStatus("connected");
+              return;
+            }
 
-        triggerInvalidation(boardId, payload.type);
+            const payload: BoardEvent = data;
+
+            // Echo suppression: Ignore events triggered by the current user
+            // (the current user already has optimistic updates and mutation callbacks)
+            if (meIdRef.current && payload.actorId === meIdRef.current) {
+              return;
+            }
+
+            setLastEventTime(new Date());
+            onRemoteEventRef.current?.(payload);
+
+            // If the user is currently dragging or interacting, buffer the event
+            if (isInteractingRef.current) {
+              hasBufferedEventRef.current = true;
+              return;
+            }
+
+            if (boardId) {
+              triggerInvalidation(boardId, payload.type);
+            }
+          } catch {
+            // Ignore non-JSON or ping frames
+          }
+        };
+
+        socket.onerror = () => {
+          if (isDisposed) return;
+          setStatus("disconnected");
+        };
+
+        socket.onclose = () => {
+          if (isDisposed) return;
+          setStatus("disconnected");
+          reconnectTimeout = setTimeout(connect, 3000);
+        };
       } catch {
-        // Ignore unparseable frames (such as keepalives)
+        if (!isDisposed) {
+          setStatus("disconnected");
+          reconnectTimeout = setTimeout(connect, 3000);
+        }
       }
-    });
+    }
 
-    es.onerror = () => {
-      if (es.readyState === EventSource.OPEN) {
-        setStatus("connected");
-      } else if (es.readyState === EventSource.CONNECTING) {
-        setStatus("connecting");
-      } else {
-        setStatus("disconnected");
-      }
-    };
+    connect();
 
     return () => {
-      es.close();
+      isDisposed = true;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (socket) {
+        socket.onopen = null;
+        socket.onmessage = null;
+        socket.onerror = null;
+        socket.onclose = null;
+        socket.close();
+      }
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
