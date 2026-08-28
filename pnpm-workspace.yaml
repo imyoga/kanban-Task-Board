@@ -1,6 +1,6 @@
 packages:
-  - artifacts/*
-  - lib/*
+  - apps/*
+  - packages/*
 
 catalog:
   '@tailwindcss/vite': ^4.1.14

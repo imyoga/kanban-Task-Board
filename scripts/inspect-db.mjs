@@ -1,10 +1,10 @@
-import pg from "../lib/db/node_modules/pg/lib/index.js";
+import pg from "../packages/db/node_modules/pg/lib/index.js";
 import { createRequire } from "module";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const require = createRequire(join(__dirname, "../artifacts/api-server/package.json"));
+const require = createRequire(join(__dirname, "../apps/api-server/package.json"));
 const bcrypt = require("bcryptjs");
 
 const { Client } = pg;

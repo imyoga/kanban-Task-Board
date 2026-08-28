@@ -1,5 +1,5 @@
-import pg from "../lib/db/node_modules/pg/lib/index.js";
-import dotenv from "../artifacts/api-server/node_modules/dotenv/lib/main.js";
+import pg from "../packages/db/node_modules/pg/lib/index.js";
+import dotenv from "../apps/api-server/node_modules/dotenv/lib/main.js";
 import path from "path";
 import { fileURLToPath } from "url";
 

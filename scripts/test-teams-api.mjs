@@ -6,9 +6,9 @@ const child = spawn(
   process.execPath,
   [
     "--import",
-    "./artifacts/api-server/load-env.mjs",
+    "./apps/api-server/load-env.mjs",
     "--enable-source-maps",
-    "./artifacts/api-server/dist/index.mjs",
+    "./apps/api-server/dist/index.mjs",
   ],
   {
     env: { ...process.env, NODE_ENV: "development", PORT: String(port), API_PORT: String(port) },

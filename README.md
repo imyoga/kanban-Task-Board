@@ -4,10 +4,10 @@ Full-stack Kanban board: React frontend + Express API + PostgreSQL (Drizzle ORM)
 
 ## Stack
 
-- **Frontend:** React 19, Vite, Tailwind CSS (`artifacts/kanban`)
-- **Backend:** Express 5 (`artifacts/api-server`)
-- **Database:** PostgreSQL + Drizzle (`lib/db`)
-- **API contract:** OpenAPI + Orval-generated client/Zod (`lib/api-spec`, `lib/api-client-react`, `lib/api-zod`)
+- **Frontend:** React 19, Vite, Tailwind CSS (`apps/kanban`)
+- **Backend:** Express 5 (`apps/api-server`)
+- **Database:** PostgreSQL + Drizzle (`packages/db`)
+- **API contract:** OpenAPI + Orval-generated client/Zod (`packages/api-spec`, `packages/api-client-react`, `packages/api-zod`)
 
 ## Setup
 

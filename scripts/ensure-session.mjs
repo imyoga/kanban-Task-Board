@@ -2,7 +2,7 @@ import { createRequire } from "module";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 
-const require = createRequire(join(dirname(fileURLToPath(import.meta.url)), "../lib/db/package.json"));
+const require = createRequire(join(dirname(fileURLToPath(import.meta.url)), "../packages/db/package.json"));
 const pg = require("pg");
 
 const client = new pg.Client({ connectionString: process.env.DATABASE_URL });

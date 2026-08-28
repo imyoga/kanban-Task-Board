@@ -26,7 +26,7 @@ if (fs.existsSync(envPath)) {
   }
 }
 
-const require = createRequire(join(__dirname, "../artifacts/api-server/package.json"));
+const require = createRequire(join(__dirname, "../apps/api-server/package.json"));
 const bcrypt = require("bcryptjs");
 const pg = require("pg");
 
@@ -128,60 +128,53 @@ for (const col of defaultColumns) {
   columnMap.set(col.title, colId);
 }
 
-// 5. Seed sample tasks if board is empty
-const tasksCountRes = await client.query(
-  `SELECT count(*) as count FROM tasks WHERE board_id = $1`,
-  [boardId]
-);
+// 5. Clean and Reseed sample tasks with valid priorities ('low' | 'medium' | 'high')
+await client.query(`DELETE FROM tasks WHERE board_id = $1`, [boardId]);
 
-if (parseInt(tasksCountRes.rows[0].count, 10) === 0) {
-  const sampleTasks = [
-    {
-      title: "Design Landing Page & UI components",
-      description: "Create sleek, responsive designs for desktop and mobile views.",
-      column: "To Do",
-      priority: "high",
-      position: 0,
-      dueDate: new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
-    },
-    {
-      title: "Integrate Authentication Flow",
-      description: "Support session authentication, remember me, and secure password hashing.",
-      column: "In Progress",
-      priority: "urgent",
-      position: 0,
-      dueDate: new Date(Date.now() + 86400000).toISOString().split("T")[0],
-    },
-    {
-      title: "Setup Docker & PostgreSQL Environment",
-      description: "Configure containerized PostgreSQL and automated migrations.",
-      column: "Done",
-      priority: "medium",
-      position: 0,
-      dueDate: new Date().toISOString().split("T")[0],
-    },
-    {
-      title: "Implement Real-time Drag and Drop",
-      description: "Smooth drag-and-drop support across Kanban task columns.",
-      column: "To Do",
-      priority: "medium",
-      position: 1,
-      dueDate: new Date(Date.now() + 86400000 * 5).toISOString().split("T")[0],
-    },
-  ];
+const sampleTasks = [
+  {
+    title: "Design Landing Page & UI components",
+    description: "Create sleek, responsive designs for desktop and mobile views.",
+    column: "To Do",
+    priority: "high",
+    position: 0,
+    dueDate: new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
+  },
+  {
+    title: "Implement Real-time Drag and Drop",
+    description: "Smooth drag-and-drop support across Kanban task columns.",
+    column: "To Do",
+    priority: "low",
+    position: 1,
+    dueDate: new Date(Date.now() + 86400000 * 5).toISOString().split("T")[0],
+  },
+  {
+    title: "Integrate Authentication Flow",
+    description: "Support session authentication, remember me, and secure password hashing.",
+    column: "In Progress",
+    priority: "high",
+    position: 0,
+    dueDate: new Date(Date.now() + 86400000).toISOString().split("T")[0],
+  },
+  {
+    title: "Setup Docker & PostgreSQL Environment",
+    description: "Configure containerized PostgreSQL and automated migrations.",
+    column: "Done",
+    priority: "medium",
+    position: 0,
+    dueDate: new Date().toISOString().split("T")[0],
+  },
+];
 
-  for (const t of sampleTasks) {
-    const colId = columnMap.get(t.column);
-    await client.query(
-      `INSERT INTO tasks (board_id, user_id, title, description, column_id, priority, position, due_date, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())`,
-      [boardId, userId, t.title, t.description, colId, t.priority, t.position, t.dueDate]
-    );
-  }
-  console.log("✓ Seeded sample tasks successfully.");
-} else {
-  console.log(`✓ Board already contains ${tasksCountRes.rows[0].count} tasks.`);
+for (const t of sampleTasks) {
+  const colId = columnMap.get(t.column);
+  await client.query(
+    `INSERT INTO tasks (board_id, user_id, title, description, column_id, priority, position, due_date, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())`,
+    [boardId, userId, t.title, t.description, colId, t.priority, t.position, t.dueDate]
+  );
 }
+console.log("✓ Reseeded tasks with valid priorities (low, medium, high).");
 
 await client.end();
 console.log("\n🎉 Database setup and seeding completed successfully!");

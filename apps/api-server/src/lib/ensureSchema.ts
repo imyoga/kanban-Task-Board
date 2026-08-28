@@ -6,7 +6,7 @@ import { dirname, join } from "path";
 export function ensureSchema() {
   const serverDist = dirname(fileURLToPath(import.meta.url));
   const repoRoot = join(serverDist, "../../..");
-  const pushScript = join(repoRoot, "lib/db/scripts/push.mjs");
+  const pushScript = join(repoRoot, "packages/db/scripts/push.mjs");
   const envFile = join(repoRoot, ".env");
 
   if (!fs.existsSync(pushScript)) {
