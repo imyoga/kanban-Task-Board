@@ -204,6 +204,81 @@ function TaskCard({ task, onEdit, onDelete }: Props) {
   );
 }
 
+export function TaskCardPreview({ task }: { task: Task }) {
+  const priorityStyle = PRIORITY_CONFIG[task.priority as keyof typeof PRIORITY_CONFIG] ?? PRIORITY_CONFIG.medium;
+  const dueStatus = getDueDateStatus(task.dueDate);
+  const assignee = task.assignee;
+
+  return (
+    <div
+      className={cn(
+        "group relative bg-card rounded-xl p-3.5 border border-border/80 shadow-2xl select-none w-72 pointer-events-none",
+        "border-l-4 rotate-2 scale-105 ring-2 ring-primary/40",
+        priorityStyle.border
+      )}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+          <div className="p-1 -ml-1 text-muted-foreground/40 rounded">
+            <GripVertical className="w-3.5 h-3.5" />
+          </div>
+          <h4 className="text-sm font-semibold text-foreground leading-snug break-words flex-1">
+            {task.title}
+          </h4>
+        </div>
+      </div>
+
+      {task.description && (
+        <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed line-clamp-2 pl-3">
+          {task.description}
+        </p>
+      )}
+
+      <div className="flex items-center justify-between gap-2 mt-3 pt-2 border-t border-border/40">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border",
+              priorityStyle.badge
+            )}
+          >
+            <span className={cn("w-1.5 h-1.5 rounded-full", priorityStyle.dot)} />
+            {priorityStyle.label}
+          </span>
+
+          {dueStatus && (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded",
+                dueStatus.isOverdue
+                  ? "bg-red-50 text-red-700 border border-red-200"
+                  : dueStatus.isToday
+                    ? "bg-amber-50 text-amber-700 border border-amber-200 font-semibold"
+                    : "text-muted-foreground"
+              )}
+            >
+              {dueStatus.isOverdue ? (
+                <AlertCircle className="w-3 h-3 text-red-500" />
+              ) : (
+                <Calendar className="w-3 h-3" />
+              )}
+              {dueStatus.label}
+            </span>
+          )}
+        </div>
+
+        {assignee ? (
+          <div className="w-6 h-6 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center text-[10px] font-bold tracking-tight shrink-0 shadow-2xs">
+            {userInitials(assignee)}
+          </div>
+        ) : (
+          <div className="w-6 h-6" />
+        )}
+      </div>
+    </div>
+  );
+}
+
 function areTasksEqual(prev: Task, next: Task) {
   return (
     prev.id === next.id &&

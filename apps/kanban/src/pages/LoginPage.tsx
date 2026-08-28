@@ -156,6 +156,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
+                autoComplete="email"
                 autoFocus={!isSignup}
                 required
                 readOnly={emailLocked}
@@ -171,6 +172,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
+                autoComplete={isSignup ? "new-password" : "current-password"}
                 minLength={isSignup ? 6 : undefined}
                 required
               />

@@ -28,7 +28,7 @@ import {
 } from "@workspace/api-client-react";
 import type { Task, Column } from "@workspace/api-client-react";
 import KanbanColumn from "@/components/KanbanColumn";
-import TaskCard from "@/components/TaskCard";
+import TaskCard, { TaskCardPreview } from "@/components/TaskCard";
 import TaskDialog from "@/components/TaskDialog";
 import AddColumnDialog from "@/components/AddColumnDialog";
 import BoardSettingsDialog from "@/components/BoardSettingsDialog";
@@ -583,11 +583,7 @@ export default function BoardPage() {
 
         {/* Drag Overlay for smooth dragging preview */}
         <DragOverlay dropAnimation={null}>
-          {activeTask ? (
-            <div className="rotate-2 scale-105 opacity-95 shadow-2xl pointer-events-none w-72">
-              <TaskCard task={activeTask} onEdit={() => {}} onDelete={() => {}} />
-            </div>
-          ) : null}
+          {activeTask ? <TaskCardPreview task={activeTask} /> : null}
         </DragOverlay>
       </DndContext>
 
