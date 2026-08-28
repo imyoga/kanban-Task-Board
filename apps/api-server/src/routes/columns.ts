@@ -9,6 +9,7 @@ import {
 } from "@workspace/api-zod";
 import { getBoardAccess } from "../lib/boardAccess";
 import { normalizeDefaultColumnsForBoard, seedDefaultColumnsForBoard } from "../lib/boards";
+import { broadcastBoardEvent } from "../lib/boardEvents";
 
 const router = Router();
 
@@ -71,6 +72,13 @@ router.post("/columns", async (req, res) => {
     .values({ boardId, userId, title, color, position: pos })
     .returning();
 
+  broadcastBoardEvent(boardId, {
+    type: "columns:changed",
+    actorId: userId,
+    action: "create",
+    columnId: col.id,
+  });
+
   res.status(201).json({ ...col, createdAt: col.createdAt.toISOString() });
 });
 
@@ -115,6 +123,13 @@ router.patch("/columns/:id", async (req, res) => {
     .where(eq(columnsTable.id, paramsParsed.data.id))
     .returning();
 
+  broadcastBoardEvent(existing.boardId, {
+    type: "columns:changed",
+    actorId: userId,
+    action: bodyParsed.data.position !== undefined ? "move" : "update",
+    columnId: col.id,
+  });
+
   res.json({ ...col, createdAt: col.createdAt.toISOString() });
 });
 
@@ -143,6 +158,14 @@ router.delete("/columns/:id", async (req, res) => {
   }
 
   await db.delete(columnsTable).where(eq(columnsTable.id, parsed.data.id));
+
+  broadcastBoardEvent(existing.boardId, {
+    type: "columns:changed",
+    actorId: userId,
+    action: "delete",
+    columnId: existing.id,
+  });
+
   res.status(204).send();
 });
 

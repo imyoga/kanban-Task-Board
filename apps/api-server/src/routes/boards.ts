@@ -3,6 +3,7 @@ import { db, boardsTable, boardMembersTable, teamsTable, teamMembersTable, users
 import { eq, and } from "drizzle-orm";
 import { getBoardAccess } from "../lib/boardAccess";
 import { createDefaultBoardForUser, seedDefaultColumnsForBoard } from "../lib/boards";
+import { addBoardClient, broadcastBoardEvent } from "../lib/boardEvents";
 
 const router = Router();
 
@@ -22,6 +23,25 @@ function serializeBoard(board: typeof boardsTable.$inferSelect, userId: number) 
     createdAt: board.createdAt.toISOString(),
   };
 }
+
+router.get("/boards/:id/events", async (req, res) => {
+  const boardId = Number(req.params.id);
+  if (!boardId || isNaN(boardId)) {
+    res.status(400).json({ error: "Invalid board id" });
+    return;
+  }
+
+  const userId = req.session.userId!;
+  const access = await getBoardAccess(boardId, userId);
+
+  if (!access) {
+    res.status(404).json({ error: "Board not found" });
+    return;
+  }
+
+  const cleanup = addBoardClient(boardId, userId, res);
+  req.on("close", cleanup);
+});
 
 router.get("/boards", async (req, res) => {
   const userId = req.session.userId!;
@@ -86,6 +106,12 @@ router.patch("/boards/:id", async (req, res) => {
     .where(eq(boardsTable.id, boardId))
     .returning();
 
+  broadcastBoardEvent(boardId, {
+    type: "board:updated",
+    actorId: userId,
+    action: "update",
+  });
+
   res.json(serializeBoard(board, userId));
 });
 
@@ -98,6 +124,12 @@ router.delete("/boards/:id", async (req, res) => {
     res.status(access ? 403 : 404).json({ error: access ? "Forbidden" : "Board not found" });
     return;
   }
+
+  broadcastBoardEvent(boardId, {
+    type: "board:deleted",
+    actorId: userId,
+    action: "delete",
+  });
 
   await db.delete(boardsTable).where(eq(boardsTable.id, boardId));
   res.status(204).send();
@@ -180,6 +212,11 @@ router.post("/boards/:id/members", async (req, res) => {
   }
 
   await db.insert(boardMembersTable).values({ boardId, userId: memberUserId });
+  broadcastBoardEvent(boardId, {
+    type: "members:changed",
+    actorId: userId,
+    action: "create",
+  });
   res.status(201).json({ userId: memberUser.id, email: memberUser.email, isOwner: false });
 });
 
@@ -208,6 +245,12 @@ router.delete("/boards/:id/members/:userId", async (req, res) => {
     res.status(404).json({ error: "Member not found" });
     return;
   }
+
+  broadcastBoardEvent(boardId, {
+    type: "members:changed",
+    actorId: userId,
+    action: "delete",
+  });
 
   res.status(204).send();
 });

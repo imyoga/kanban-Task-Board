@@ -11,6 +11,7 @@ import {
 } from "@workspace/api-zod";
 import { getBoardAccess, getTeamForBoard } from "../lib/boardAccess";
 import { applyTaskMove } from "../lib/taskOrder";
+import { broadcastBoardEvent } from "../lib/boardEvents";
 
 const router = Router();
 
@@ -213,6 +214,14 @@ router.post("/tasks", async (req, res) => {
     assignee = u ?? null;
   }
 
+  broadcastBoardEvent(boardId, {
+    type: "tasks:changed",
+    actorId: userId,
+    action: "create",
+    taskId: task.id,
+    columnId: task.columnId,
+  });
+
   res.status(201).json(serializeTask(task, assignee));
 });
 
@@ -335,6 +344,14 @@ router.patch("/tasks/:id", async (req, res) => {
     assignee = u ?? null;
   }
 
+  broadcastBoardEvent(existing.boardId, {
+    type: "tasks:changed",
+    actorId: userId,
+    action: (body.columnId !== undefined || body.position !== undefined) ? "move" : "update",
+    taskId: task.id,
+    columnId: task.columnId,
+  });
+
   res.json(serializeTask(task, assignee));
 });
 
@@ -363,6 +380,15 @@ router.delete("/tasks/:id", async (req, res) => {
   }
 
   await db.delete(tasksTable).where(eq(tasksTable.id, parsed.data.id));
+
+  broadcastBoardEvent(existing.boardId, {
+    type: "tasks:changed",
+    actorId: userId,
+    action: "delete",
+    taskId: existing.id,
+    columnId: existing.columnId,
+  });
+
   res.status(204).send();
 });
 

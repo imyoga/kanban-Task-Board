@@ -48,6 +48,7 @@ import {
   buildReorderedTasks,
 } from "@/lib/dnd";
 import { useBoardIdFromRoute } from "@/hooks/useBoardId";
+import { useBoardEvents } from "@/hooks/useBoardEvents";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -80,6 +81,14 @@ export default function BoardPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [defaultColumnId, setDefaultColumnId] = useState<number | undefined>();
+
+  // Real-time synchronization via Server-Sent Events (SSE)
+  // Incoming remote updates are buffered while the user is actively dragging or has modals open
+  const isInteracting = activeTask !== null || taskDialogOpen || addColumnOpen || settingsOpen;
+  const { isConnected } = useBoardEvents({
+    boardId,
+    isInteracting,
+  });
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -395,6 +404,32 @@ export default function BoardPage() {
                     Personal
                   </Badge>
                 )}
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div
+                      className={cn(
+                        "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors select-none",
+                        isConnected
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                          : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "w-1.5 h-1.5 rounded-full",
+                          isConnected ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
+                        )}
+                      />
+                      <span>{isConnected ? "Live" : "Connecting..."}</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-xs">
+                    {isConnected
+                      ? "Real-time sync active. Board updates automatically when teammates make changes."
+                      : "Connecting to real-time sync stream..."}
+                  </TooltipContent>
+                </Tooltip>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {filteredTasks.length} {filteredTasks.length === 1 ? "task" : "tasks"}
