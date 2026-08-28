@@ -1,3 +1,3 @@
-pnpm dev:be
+pnpm prod
 
 cmd /k
