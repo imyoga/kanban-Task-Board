@@ -1,11 +1,15 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import {
   DndContext,
   DragOverlay,
   PointerSensor,
   closestCorners,
+  pointerWithin,
+  rectIntersection,
+  getFirstCollision,
   useSensor,
   useSensors,
+  type CollisionDetection,
   type DragStartEvent,
   type DragEndEvent,
   type DragOverEvent,
@@ -81,6 +85,7 @@ export default function BoardPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [defaultColumnId, setDefaultColumnId] = useState<number | undefined>();
+  const lastOverId = useRef<string | number | null>(null);
 
   // Real-time synchronization via Server-Sent Events (SSE)
   // Incoming remote updates are buffered while the user is actively dragging or has modals open
@@ -137,6 +142,44 @@ export default function BoardPage() {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
+  const collisionDetectionStrategy: CollisionDetection = useCallback(
+    (args) => {
+      // 1. First, check for pointer collisions directly under cursor
+      const pointerCollisions = pointerWithin(args);
+      const intersections =
+        pointerCollisions.length > 0
+          ? pointerCollisions
+          : rectIntersection(args);
+
+      let overId = getFirstCollision(intersections, "id");
+
+      if (overId != null) {
+        // If hovering over a column, check if pointer is over any specific task inside that column
+        if (String(overId).startsWith("column-")) {
+          const itemCollisions = closestCorners({
+            ...args,
+            droppableContainers: args.droppableContainers.filter(
+              (c) => c.id !== overId && String(c.id).startsWith("task-")
+            ),
+          });
+          if (itemCollisions.length > 0) {
+            overId = itemCollisions[0].id;
+          }
+        }
+        lastOverId.current = overId;
+        return [{ id: overId }];
+      }
+
+      // If dragging outside any valid container, fallback to last known over container to prevent thrashing
+      if (lastOverId.current) {
+        return [{ id: lastOverId.current }];
+      }
+
+      return [];
+    },
+    []
+  );
+
   const getTasksForColumn = useCallback(
     (columnId: number) => {
       return filteredTasks
@@ -148,6 +191,7 @@ export default function BoardPage() {
 
   function handleDragStart(event: DragStartEvent) {
     const { active } = event;
+    lastOverId.current = null;
     const task = getTaskFromDndActive(active.data.current);
     if (task) {
       setActiveTask(task);
@@ -186,7 +230,7 @@ export default function BoardPage() {
       setLocalTasks((prev) => {
         const base = prev ?? tasks;
         const moving = base.find((t) => t.id === activeTaskId);
-        if (!moving) return prev;
+        if (!moving || moving.columnId === targetColumnId) return prev;
 
         const targetColTasks = base.filter(
           (t) => t.columnId === targetColumnId && t.id !== activeTaskId
@@ -205,6 +249,7 @@ export default function BoardPage() {
   }
 
   function handleDragCancel(_event: DragCancelEvent) {
+    lastOverId.current = null;
     setActiveTask(null);
     setLocalTasks(null);
     setLocalColumns(null);
@@ -212,6 +257,7 @@ export default function BoardPage() {
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
+    lastOverId.current = null;
     setActiveTask(null);
 
     if (!over) {
@@ -577,7 +623,7 @@ export default function BoardPage() {
 
       {/* Kanban Board Drag-and-Drop Area */}
       <DndContext
-        collisionDetection={closestCorners}
+        collisionDetection={collisionDetectionStrategy}
         sensors={sensors}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
