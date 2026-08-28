@@ -52,6 +52,12 @@ export function useBoardEvents({
   const isInteractingRef = useRef(isInteracting);
   isInteractingRef.current = isInteracting;
 
+  const onRemoteEventRef = useRef(onRemoteEvent);
+  onRemoteEventRef.current = onRemoteEvent;
+
+  const meIdRef = useRef(me?.id);
+  meIdRef.current = me?.id;
+
   const triggerInvalidation = useCallback(
     (targetBoardId: number, eventType?: string) => {
       // Coalesce multiple rapid events into a single query invalidation batch
@@ -106,12 +112,12 @@ export function useBoardEvents({
 
         // Echo suppression: Ignore events triggered by the current user
         // (the current user already has optimistic updates and mutation callbacks)
-        if (me?.id && payload.actorId === me.id) {
+        if (meIdRef.current && payload.actorId === meIdRef.current) {
           return;
         }
 
         setLastEventTime(new Date());
-        onRemoteEvent?.(payload);
+        onRemoteEventRef.current?.(payload);
 
         // If the user is currently dragging or interacting, buffer the event
         if (isInteractingRef.current) {
@@ -141,7 +147,7 @@ export function useBoardEvents({
         clearTimeout(debounceTimerRef.current);
       }
     };
-  }, [boardId, me?.id, triggerInvalidation, onRemoteEvent]);
+  }, [boardId]);
 
   return {
     status,
