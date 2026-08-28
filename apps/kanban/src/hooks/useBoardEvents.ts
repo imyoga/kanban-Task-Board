@@ -100,6 +100,7 @@ export function useBoardEvents({
     });
 
     es.addEventListener("message", (e: MessageEvent) => {
+      setStatus("connected");
       try {
         const payload: BoardEvent = JSON.parse(e.data);
 
@@ -125,7 +126,13 @@ export function useBoardEvents({
     });
 
     es.onerror = () => {
-      setStatus("disconnected");
+      if (es.readyState === EventSource.OPEN) {
+        setStatus("connected");
+      } else if (es.readyState === EventSource.CONNECTING) {
+        setStatus("connecting");
+      } else {
+        setStatus("disconnected");
+      }
     };
 
     return () => {

@@ -32,6 +32,7 @@ const keepaliveInterval = setInterval(() => {
     for (const client of clients) {
       try {
         client.res.write(":keepalive\n\n");
+        (client.res as any).flush?.();
       } catch (err) {
         logger.warn({ err, boardId, clientId: client.id }, "Failed to write keepalive to SSE client");
         clients.delete(client);
@@ -41,7 +42,7 @@ const keepaliveInterval = setInterval(() => {
       boardClients.delete(boardId);
     }
   }
-}, 25_000);
+}, 15_000);
 
 // Prevent the interval from holding the Node.js process open on shutdown
 if (keepaliveInterval.unref) {
@@ -69,6 +70,7 @@ export function addBoardClient(boardId: number, userId: number, res: Response): 
     timestamp: new Date().toISOString(),
   });
   res.write(`event: connected\ndata: ${initialPayload}\n\n`);
+  (res as any).flush?.();
 
   const client: SSEClient = { id: clientId, userId, res };
 
@@ -118,6 +120,7 @@ export function broadcastBoardEvent(
   for (const client of clients) {
     try {
       client.res.write(message);
+      (client.res as any).flush?.();
     } catch (err) {
       logger.warn({ err, boardId, clientId: client.id }, "Failed to deliver event to SSE client");
       clients.delete(client);
