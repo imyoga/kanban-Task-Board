@@ -24,8 +24,8 @@ if (!content.includes("proxy_buffering      off;") && !content.includes("proxy_b
     console.log("✓ Updated Nginx config with proxy_buffering off for SSE.");
 
     try {
-      execSync(`"${nginxDir}/nginx.exe" -t`, { stdio: "inherit" });
-      execSync(`"${nginxDir}/nginx.exe" -s reload`, { stdio: "inherit" });
+      execSync(`"${nginxDir}/nginx.exe" -t`, { cwd: nginxDir, stdio: "inherit" });
+      execSync(`"${nginxDir}/nginx.exe" -s reload`, { cwd: nginxDir, stdio: "inherit" });
       console.log("✓ Tested & reloaded Nginx successfully.");
     } catch (e) {
       console.error("Failed to test/reload Nginx:", e);
@@ -36,8 +36,8 @@ if (!content.includes("proxy_buffering      off;") && !content.includes("proxy_b
 } else {
   console.log("✓ Nginx config already has proxy_buffering disabled for SSE.");
   try {
-    execSync(`"${nginxDir}/nginx.exe" -t`, { stdio: "inherit" });
-    execSync(`"${nginxDir}/nginx.exe" -s reload`, { stdio: "inherit" });
+    execSync(`"${nginxDir}/nginx.exe" -t`, { cwd: nginxDir, stdio: "inherit" });
+    execSync(`"${nginxDir}/nginx.exe" -s reload`, { cwd: nginxDir, stdio: "inherit" });
     console.log("✓ Reloaded Nginx successfully.");
   } catch (e) {
     console.error("Nginx reload notice:", e.message);
