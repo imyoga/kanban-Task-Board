@@ -145,7 +145,10 @@ export default function BoardSettingsDialog({ board, open, onOpenChange, onDelet
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md p-6">
+      <DialogContent
+        className="sm:max-w-md p-6"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <DialogHeader className="pb-2 border-b border-border/50">
           <DialogTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
             <Settings className="w-5 h-5 text-primary" />
