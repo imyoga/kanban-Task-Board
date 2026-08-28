@@ -21,6 +21,9 @@ export default defineConfig(({ mode }) => {
   return {
     base: basePath,
     envDir,
+    define: {
+      __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+    },
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {

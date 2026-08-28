@@ -179,6 +179,17 @@ export default function Layout({ children }: LayoutProps) {
             <LogOut className="w-4 h-4" />
             Sign out
           </button>
+
+          {typeof __BUILD_TIME__ !== "undefined" && __BUILD_TIME__ && (
+            <div className="mt-2 pt-2 border-t border-sidebar-border/40 text-[10px] text-sidebar-foreground/40 text-center font-mono select-none">
+              Deployed: {new Date(__BUILD_TIME__).toLocaleString(undefined, {
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </div>
+          )}
         </div>
       </aside>
 
