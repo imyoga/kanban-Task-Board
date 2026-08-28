@@ -14,7 +14,7 @@
     "--- PRODUCTION ---": "echo Production Scripts",
     "prod": "pnpm run build && pnpm run start",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
-    "build:web": "pnpm --filter @workspace/kanban run build",
+    "build:fe": "pnpm --filter @workspace/kanban run build",
     "start": "pnpm --filter @workspace/api-server run start",
 
     "--- QUALITY & DB ---": "echo Quality and Database Scripts",
