@@ -5,17 +5,17 @@
   "private": true,
   "scripts": {
     "preinstall": "node -e \"const ua=process.env.npm_config_user_agent||''; if(!ua.includes('pnpm')){console.error('Use pnpm instead'); process.exit(1)}\"",
+
     "--- DEVELOPMENT ---": "echo Development Scripts",
-    "dev": "concurrently -n api,web -c blue,green \"pnpm run dev:api\" \"pnpm run dev:web\"",
-    "dev:api": "pnpm --filter @workspace/api-server run dev",
-    "dev:web": "pnpm --filter @workspace/kanban run dev",
-    "dev:be": "pnpm run build:web && pnpm --filter @workspace/api-server run dev:watch",
+    "dev": "concurrently -n api,web -c blue,green \"pnpm run dev:be\" \"pnpm run dev:fe\"",
+    "dev:be": "pnpm --filter @workspace/api-server run dev",
+    "dev:fe": "pnpm --filter @workspace/kanban run dev",
 
     "--- PRODUCTION ---": "echo Production Scripts",
+    "prod": "pnpm run build && pnpm run start",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "build:web": "pnpm --filter @workspace/kanban run build",
     "start": "pnpm --filter @workspace/api-server run start",
-    "prod": "pnpm run build && pnpm run start",
 
     "--- QUALITY & DB ---": "echo Quality and Database Scripts",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./apps/**\" --if-present run typecheck",

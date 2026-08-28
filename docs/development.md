@@ -64,17 +64,17 @@ Starts:
 - Express API server on `http://localhost:5000`
 - Vite frontend application on `http://localhost:5173`
 
-### Individual Services
+### Individual & Production Services
 
 ```bash
-# Start API server in watch mode
-pnpm dev:api
+# Start Express API server in watch mode
+pnpm dev:be
 
 # Start Vite React frontend
-pnpm dev:web
+pnpm dev:fe
 
-# Production build and run API with built frontend
-pnpm dev:be
+# Production build and run single-port server
+pnpm prod
 ```
 
 ---

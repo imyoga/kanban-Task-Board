@@ -35,19 +35,25 @@ This runs Drizzle push in CI mode with `--force` and skips interactive rename pr
 ## Run locally
 
 ```bash
-# Terminal 1 - API (http://localhost:5000 by default, or your .env PORT)
-pnpm dev:api
+# Both FE + BE concurrently
+pnpm dev
 
-# Terminal 2 - Web (http://localhost:5173, proxies /api -> API)
-pnpm dev:web
+# Or run individual services:
+pnpm dev:be  # Start API Backend (http://localhost:5000)
+pnpm dev:fe  # Start React Frontend (http://localhost:5173)
+
+# Production build & run:
+pnpm prod    # Build all packages & run single-port server (http://localhost:45013)
 ```
 
 ## Useful scripts
 
 | Command | Description |
 |---|---|
-| `pnpm dev:api` | Start the API server in watch mode |
-| `pnpm dev:web` | Start the Vite frontend |
+| `pnpm dev` | Start both Backend and Frontend concurrently |
+| `pnpm dev:be` | Start the Express API server in watch mode |
+| `pnpm dev:fe` | Start the Vite React frontend |
+| `pnpm prod` | Build all packages and run production server |
 | `pnpm db:push` | Apply Drizzle schema to Postgres (non-interactive, forced) |
 | `pnpm typecheck` | Typecheck all packages |
 | `pnpm build` | Typecheck + build all packages |
