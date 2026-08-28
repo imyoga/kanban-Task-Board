@@ -63,6 +63,9 @@ export function addBoardClient(boardId: number, userId: number, res: Response): 
 
   res.flushHeaders?.();
 
+  // Send 2KB initial comment padding to force Cloudflare/Nginx proxy buffering to flush immediately
+  res.write(`: ${" ".repeat(2048)}\n\n`);
+
   // Send initial handshake
   const initialPayload = JSON.stringify({
     type: "connected",
