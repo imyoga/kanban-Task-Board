@@ -35,9 +35,11 @@ const newServerBlock = `# Kanban Task Board -> port 45013 (backend serves fronte
             proxy_set_header   Accept-Encoding "";
             proxy_read_timeout 86400s;
             proxy_send_timeout 86400s;
+            proxy_connect_timeout 300s;
             proxy_buffering    off;
             proxy_cache        off;
             chunked_transfer_encoding on;
+            gzip               off;
         }
 
         error_page   500 502 503 504  /50x.html;
