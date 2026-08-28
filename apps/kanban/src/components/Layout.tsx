@@ -181,13 +181,20 @@ export default function Layout({ children }: LayoutProps) {
           </button>
 
           {typeof __BUILD_TIME__ !== "undefined" && __BUILD_TIME__ && (
-            <div className="mt-2 pt-2 border-t border-sidebar-border/40 text-[10px] text-sidebar-foreground/40 text-center font-mono select-none">
-              Deployed: {new Date(__BUILD_TIME__).toLocaleString(undefined, {
-                month: "short",
-                day: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+            <div className="mt-2 pt-2 border-t border-sidebar-border/40 text-[10px] text-sidebar-foreground/40 text-center font-mono select-none space-y-0.5">
+              <div>
+                Deployed: {new Date(__BUILD_TIME__).toLocaleString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </div>
+              {typeof __COMMIT_HASH__ !== "undefined" && __COMMIT_HASH__ && (
+                <div className="text-sidebar-foreground/35">
+                  Commit: <span className="text-sidebar-foreground/60 font-semibold">{__COMMIT_HASH__}</span>
+                </div>
+              )}
             </div>
           )}
         </div>
