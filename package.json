@@ -11,6 +11,8 @@
     "build:web": "pnpm --filter @workspace/kanban run build",
     "dev:be": "pnpm run build:web && pnpm --filter @workspace/api-server run dev:watch",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
+    "start": "pnpm --filter @workspace/api-server run start",
+    "prod": "pnpm run build && pnpm run start",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./apps/**\" --if-present run typecheck",
     "db:up": "docker compose up -d",

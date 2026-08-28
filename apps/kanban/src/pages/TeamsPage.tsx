@@ -29,8 +29,8 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, X, Users } from "lucide-react";
-import { userDisplayName } from "@/hooks/useAuth";
+import { Plus, Trash2, X, Users, Mail, Link as LinkIcon, UserMinus, Clock, ShieldCheck } from "lucide-react";
+import { userDisplayName, userInitials } from "@/hooks/useAuth";
 
 function TeamCard({ teamId }: { teamId: number }) {
   const qc = useQueryClient();
@@ -99,7 +99,7 @@ function TeamCard({ teamId }: { teamId: number }) {
           }
 
           invalidateTeam();
-          toast({ title: boardId ? "Board linked" : "Board unlinked" });
+          toast({ title: boardId ? "Board linked to team" : "Board unlinked" });
         },
         onError: (err) =>
           toast({
@@ -113,7 +113,8 @@ function TeamCard({ teamId }: { teamId: number }) {
     );
   }
 
-  function handleInvite() {
+  function handleInvite(e: React.FormEvent) {
+    e.preventDefault();
     const email = inviteEmail.trim();
     if (!email) return;
     inviteMember.mutate(
@@ -157,48 +158,62 @@ function TeamCard({ teamId }: { teamId: number }) {
   }
 
   return (
-    <div className="bg-card border border-card-border rounded-xl p-5 space-y-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold text-foreground">{team.name}</h2>
+    <div className="bg-card border border-border/80 rounded-2xl p-6 space-y-6 shadow-xs hover:shadow-md transition-shadow">
+      {/* Team Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-lg font-bold text-foreground">{team.name}</h2>
             {team.isOwner ? (
-              <Badge variant="secondary" className="text-[10px]">Owner</Badge>
+              <Badge className="bg-primary/10 text-primary border-primary/20 text-xs font-semibold">
+                Owner
+              </Badge>
             ) : (
-              <Badge variant="outline" className="text-[10px]">Member</Badge>
+              <Badge variant="outline" className="text-xs">Member</Badge>
             )}
           </div>
-          {team.boardName && (
-            <p className="text-sm text-muted-foreground mt-1">
-              Linked board: {team.boardName}
+          {team.boardName ? (
+            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <LinkIcon className="w-3.5 h-3.5 text-primary" />
+              <span>Linked board: <strong className="text-foreground">{team.boardName}</strong></span>
             </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">No board linked yet</p>
           )}
         </div>
+
         {team.isOwner && (
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="text-muted-foreground hover:text-destructive"
+            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 -mr-2 -mt-2"
             onClick={handleDelete}
             disabled={deleteTeam.isPending}
             aria-label="Delete team"
+            title="Delete team"
           >
             <Trash2 className="w-4 h-4" />
           </Button>
         )}
       </div>
 
+      {/* Linked Board Selection (Owner only) */}
       {team.isOwner && (
-        <div className="space-y-1.5">
-          <Label>Linked board</Label>
+        <div className="space-y-1.5 bg-muted/30 p-3.5 rounded-xl border border-border/60">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Linked Kanban Board
+            </Label>
+            <span className="text-[10px] text-muted-foreground">Team Workspace</span>
+          </div>
           <Select
             value={team.boardId ? String(team.boardId) : "none"}
             onValueChange={handleBoardChange}
             disabled={updateTeam.isPending}
           >
-            <SelectTrigger>
-              <SelectValue placeholder="Select a board" />
+            <SelectTrigger className="h-9 bg-background text-xs">
+              <SelectValue placeholder="Select a board to link" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">No board linked</SelectItem>
@@ -209,27 +224,43 @@ function TeamCard({ teamId }: { teamId: number }) {
               ))}
             </SelectContent>
           </Select>
-          <p className="text-xs text-muted-foreground">
-            Only boards you own can be linked. Shared boards cannot be linked.
-          </p>
         </div>
       )}
 
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">Members ({members.length})</Label>
-        <div className="space-y-1.5 mt-2">
+      {/* Members Section */}
+      <div className="space-y-2.5">
+        <div className="flex items-center justify-between">
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Members ({members.length})
+          </Label>
+          <span className="text-[10px] text-muted-foreground">Active Collaborators</span>
+        </div>
+
+        <div className="space-y-2">
           {members.map((member) => (
             <div
               key={member.userId}
-              className="flex items-center justify-between text-sm py-2 px-3 rounded-md bg-muted/50"
+              className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 border border-border/50 hover:bg-muted/60 transition-colors"
             >
-              <div>
-                <span className="font-medium">{userDisplayName(member)}</span>
-                <span className="text-muted-foreground ml-2 text-xs">{member.email}</span>
-                {member.isOwner && (
-                  <span className="text-xs text-muted-foreground ml-2">Owner</span>
-                )}
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center text-xs font-bold shrink-0">
+                  {userInitials(member)}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-sm text-foreground truncate">
+                      {userDisplayName(member)}
+                    </span>
+                    {member.isOwner && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary px-1.5 py-0.2 bg-primary/10 rounded-full">
+                        <ShieldCheck className="w-3 h-3" /> Owner
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate">{member.email}</p>
+                </div>
               </div>
+
               {team.isOwner && !member.isOwner && (
                 <button
                   type="button"
@@ -246,10 +277,11 @@ function TeamCard({ teamId }: { teamId: number }) {
                       },
                     )
                   }
-                  className="p-1 text-muted-foreground hover:text-destructive"
+                  className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
                   aria-label="Remove member"
+                  title="Remove member"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <UserMinus className="w-4 h-4" />
                 </button>
               )}
             </div>
@@ -257,16 +289,22 @@ function TeamCard({ teamId }: { teamId: number }) {
         </div>
       </div>
 
+      {/* Pending Invites */}
       {team.isOwner && invites.length > 0 && (
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Pending invites</Label>
+        <div className="space-y-2 pt-2 border-t border-border/60">
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Pending Invitations ({invites.length})
+          </Label>
           <div className="space-y-1.5">
             {invites.map((invite) => (
               <div
                 key={invite.id}
-                className="flex items-center justify-between text-sm py-2 px-3 rounded-md bg-amber-50 border border-amber-100"
+                className="flex items-center justify-between py-2 px-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs"
               >
-                <span>{invite.email}</span>
+                <div className="flex items-center gap-2">
+                  <Clock className="w-3.5 h-3.5 text-amber-600" />
+                  <span className="font-medium text-amber-900 dark:text-amber-300">{invite.email}</span>
+                </div>
                 <button
                   type="button"
                   onClick={() =>
@@ -282,8 +320,9 @@ function TeamCard({ teamId }: { teamId: number }) {
                       },
                     )
                   }
-                  className="p-1 text-muted-foreground hover:text-destructive"
+                  className="p-1 text-muted-foreground hover:text-destructive rounded transition-colors"
                   aria-label="Cancel invite"
+                  title="Cancel invite"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -293,26 +332,35 @@ function TeamCard({ teamId }: { teamId: number }) {
         </div>
       )}
 
+      {/* Invite Form (Owner only) */}
       {team.isOwner && (
-        <div className="space-y-2 pt-2 border-t border-border">
-          <Label htmlFor={`invite-${teamId}`}>Invite by email</Label>
+        <form onSubmit={handleInvite} className="space-y-2 pt-3 border-t border-border/60">
+          <Label htmlFor={`invite-${teamId}`} className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Invite New Member
+          </Label>
           <div className="flex gap-2">
-            <Input
-              id={`invite-${teamId}`}
-              type="email"
-              placeholder="colleague@example.com"
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              className="flex-1"
-            />
+            <div className="relative flex-1">
+              <Mail className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id={`invite-${teamId}`}
+                type="email"
+                placeholder="colleague@example.com"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                className="pl-8 h-9 text-xs"
+                required
+              />
+            </div>
             <Button
-              onClick={handleInvite}
+              type="submit"
+              size="sm"
               disabled={!inviteEmail.trim() || inviteMember.isPending}
+              className="h-9 font-medium"
             >
-              Invite
+              {inviteMember.isPending ? "Sending..." : "Send Invite"}
             </Button>
           </div>
-        </div>
+        </form>
       )}
     </div>
   );
@@ -345,44 +393,64 @@ export default function TeamsPage() {
 
   return (
     <div className="flex-1 overflow-y-auto p-8">
-      <div className="max-w-2xl space-y-8">
+      <div className="max-w-3xl space-y-8">
+        {/* Page Header */}
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Users className="w-6 h-6 text-primary" />
-            <h1 className="text-2xl font-semibold text-foreground">Teams</h1>
+          <div className="flex items-center gap-2.5 mb-1.5">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+              <Users className="w-5 h-5" />
+            </div>
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">Teams & Workspaces</h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            Create teams, invite members, and link a board so your team can collaborate and assign
-            tasks.
+            Create teams, invite colleagues, and link boards so your entire team can collaborate and assign tasks.
           </p>
         </div>
 
+        {/* Create Team Form */}
         <form
           onSubmit={handleCreate}
-          className="flex gap-2 bg-card border border-card-border rounded-xl p-4"
+          className="bg-card border border-border/80 rounded-2xl p-5 shadow-xs space-y-3"
         >
-          <div className="flex-1 space-y-1.5">
-            <Label htmlFor="new-team">New team name</Label>
+          <Label htmlFor="new-team" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Create a New Team
+          </Label>
+          <div className="flex gap-2.5">
             <Input
               id="new-team"
               value={newTeamName}
               onChange={(e) => setNewTeamName(e.target.value)}
-              placeholder="Engineering"
+              placeholder="e.g. Design Team, Frontend Squad..."
+              className="h-10 text-sm font-medium"
+              required
             />
-          </div>
-          <div className="flex items-end">
-            <Button type="submit" disabled={!newTeamName.trim() || createTeam.isPending}>
+            <Button
+              type="submit"
+              disabled={!newTeamName.trim() || createTeam.isPending}
+              className="h-10 px-4 font-semibold shrink-0"
+            >
               <Plus className="w-4 h-4 mr-1" />
-              {createTeam.isPending ? "Creating..." : "Create team"}
+              {createTeam.isPending ? "Creating..." : "Create Team"}
             </Button>
           </div>
         </form>
 
+        {/* Teams List */}
         {teams.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No teams yet. Create one to get started.</p>
+          <div className="bg-card border-2 border-dashed border-border/80 rounded-2xl p-12 text-center space-y-3">
+            <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto">
+              <Users className="w-6 h-6" />
+            </div>
+            <h3 className="text-base font-semibold text-foreground">No Teams Yet</h3>
+            <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+              Create your first team above to start inviting teammates and sharing boards.
+            </p>
+          </div>
         ) : (
-          <div className="space-y-4">
-            {teams.map((team) => <TeamCard key={team.id} teamId={team.id} />)}
+          <div className="space-y-6">
+            {teams.map((team) => (
+              <TeamCard key={team.id} teamId={team.id} />
+            ))}
           </div>
         )}
       </div>

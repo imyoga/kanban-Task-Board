@@ -280,9 +280,7 @@ router.patch("/tasks/:id", async (req, res) => {
   const body = bodyParsed.data;
   if (body.title !== undefined) updates.title = body.title;
   if (body.description !== undefined) updates.description = body.description;
-  if (body.columnId !== undefined) updates.columnId = body.columnId;
   if (body.priority !== undefined) updates.priority = body.priority;
-  if (body.position !== undefined) updates.position = body.position;
   if (body.dueDate !== undefined) updates.dueDate = body.dueDate;
 
   if (body.assigneeId !== undefined) {
@@ -309,34 +307,28 @@ router.patch("/tasks/:id", async (req, res) => {
     }
   }
 
+  // Apply metadata updates first (title, description, priority, dueDate, assigneeId)
+  if (Object.keys(updates).length > 1) { // more than just updatedAt
+    await db
+      .update(tasksTable)
+      .set(updates)
+      .where(eq(tasksTable.id, paramsParsed.data.id));
+  }
+
+  // If column or position changed, perform reordering across affected columns
   if (body.columnId !== undefined || body.position !== undefined) {
     const newColumnId = body.columnId ?? existing.columnId;
     const newPosition = body.position ?? existing.position;
 
     try {
-      await applyTaskMove(existing.id, newColumnId, newPosition);
+      await applyTaskMove(existing.id, existing.columnId, newColumnId, newPosition);
     } catch {
       res.status(404).json({ error: "Task not found" });
       return;
     }
-
-    const [task] = await db.select().from(tasksTable).where(eq(tasksTable.id, paramsParsed.data.id));
-    let assignee: UserRow | null = null;
-    if (task.assigneeId) {
-      const [u] = await db.select().from(usersTable).where(eq(usersTable.id, task.assigneeId));
-      assignee = u ?? null;
-    }
-
-    res.json(serializeTask(task, assignee));
-    return;
   }
 
-  const [task] = await db
-    .update(tasksTable)
-    .set(updates)
-    .where(eq(tasksTable.id, paramsParsed.data.id))
-    .returning();
-
+  const [task] = await db.select().from(tasksTable).where(eq(tasksTable.id, paramsParsed.data.id));
   let assignee: UserRow | null = null;
   if (task.assigneeId) {
     const [u] = await db.select().from(usersTable).where(eq(usersTable.id, task.assigneeId));

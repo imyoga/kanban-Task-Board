@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import { LayoutDashboard } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -46,27 +47,35 @@ export default function AddBoardDialog({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>New board</DialogTitle>
+      <DialogContent className="sm:max-w-sm p-6">
+        <DialogHeader className="pb-2 border-b border-border/50">
+          <DialogTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <LayoutDashboard className="w-5 h-5 text-primary" />
+            New Board
+          </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           <div className="space-y-1.5">
-            <Label htmlFor="board-name">Name</Label>
+            <Label htmlFor="board-name" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Board Name
+            </Label>
             <Input
               id="board-name"
               value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="Untitled board"
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Product Roadmap, Sprint 24..."
+              className="h-10 text-sm font-medium"
               autoFocus
             />
           </div>
-          <DialogFooter>
+
+          <DialogFooter className="pt-3 border-t border-border/50">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={createBoard.isPending}>
-              {createBoard.isPending ? "Creating..." : "Create board"}
+              {createBoard.isPending ? "Creating..." : "Create Board"}
             </Button>
           </DialogFooter>
         </form>

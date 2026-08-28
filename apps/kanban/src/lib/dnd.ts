@@ -1,5 +1,4 @@
 import type { Column, Task } from "@workspace/api-client-react";
-import type { DragEndEvent, DragOverEvent } from "@dnd-kit/core";
 
 export const taskDndId = (id: number) => `task-${id}`;
 export const columnDndId = (id: number) => `column-${id}`;
@@ -14,54 +13,47 @@ export function getColumnFromDndActive(data: { type?: string; column?: Column } 
   return undefined;
 }
 
-export function resolveTargetColumnId(
-  over: DragOverEvent["over"] | DragEndEvent["over"],
-): number | undefined {
-  if (!over) return undefined;
-  if (over.data.current?.type === "column") {
-    return (over.data.current.column as Column).id;
-  }
-  if (over.data.current?.type === "task") {
-    return (over.data.current.task as Task).columnId;
-  }
-  return undefined;
-}
-
-export function computeTaskInsertIndex(
-  event: DragOverEvent | DragEndEvent,
-  columnTasks: Task[],
+export function buildReorderedTasks(
+  allTasks: Task[],
   activeTaskId: number,
-): number | undefined {
-  const { active, over } = event;
-  if (!over || active.id === over.id) return undefined;
+  targetColumnId: number,
+  insertIndex: number,
+): Task[] {
+  const movingTask = allTasks.find((t) => t.id === activeTaskId);
+  if (!movingTask) return allTasks;
 
-  const sorted = [...columnTasks].sort(
-    (left, right) => left.position - right.position || left.id - right.id,
+  const sourceColumnId = movingTask.columnId;
+  const isSameColumn = sourceColumnId === targetColumnId;
+
+  // Source column tasks excluding moving task
+  const sourceTasks = allTasks
+    .filter((t) => t.columnId === sourceColumnId && t.id !== activeTaskId)
+    .sort((a, b) => a.position - b.position || a.id - b.id);
+
+  // Target column tasks excluding moving task
+  const targetTasks = isSameColumn
+    ? sourceTasks
+    : allTasks
+        .filter((t) => t.columnId === targetColumnId && t.id !== activeTaskId)
+        .sort((a, b) => a.position - b.position || a.id - b.id);
+
+  // Insert moving task into target column at desired index
+  const clampedIndex = Math.max(0, Math.min(insertIndex, targetTasks.length));
+  const newTargetList = [...targetTasks];
+  newTargetList.splice(clampedIndex, 0, { ...movingTask, columnId: targetColumnId });
+
+  // Re-index target list
+  const reindexedTarget = newTargetList.map((t, idx) => ({ ...t, position: idx }));
+
+  // Re-index source list if different column
+  const reindexedSource = isSameColumn
+    ? []
+    : sourceTasks.map((t, idx) => ({ ...t, position: idx }));
+
+  // Untouched other columns
+  const otherTasks = allTasks.filter(
+    (t) => t.columnId !== sourceColumnId && t.columnId !== targetColumnId,
   );
 
-  if (over.data.current?.type === "column") {
-    return sorted.filter((task) => task.id !== activeTaskId).length;
-  }
-
-  if (over.data.current?.type !== "task") return undefined;
-
-  const overTask = over.data.current.task as Task;
-  if (overTask.id === activeTaskId) return undefined;
-
-  const overIndex = sorted.findIndex((task) => task.id === overTask.id);
-  if (overIndex < 0) return undefined;
-
-  const activeIndex = sorted.findIndex((task) => task.id === activeTaskId);
-  const isBelowOverItem = Boolean(
-    active.rect.current.translated &&
-      active.rect.current.translated.top > over.rect.top + over.rect.height / 2,
-  );
-
-  let insertIndex = overIndex + (isBelowOverItem ? 1 : 0);
-  if (activeIndex >= 0 && activeIndex < insertIndex) {
-    insertIndex -= 1;
-  }
-
-  const withoutActive = sorted.filter((task) => task.id !== activeTaskId);
-  return Math.max(0, Math.min(insertIndex, withoutActive.length));
+  return [...otherTasks, ...reindexedSource, ...reindexedTarget];
 }

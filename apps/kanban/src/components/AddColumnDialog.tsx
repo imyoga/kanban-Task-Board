@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { Columns3 } from "lucide-react";
 
 const PRESET_COLORS = [
   "#6366f1", "#8b5cf6", "#ec4899", "#ef4444",
@@ -50,45 +51,58 @@ export default function AddColumnDialog({ open, onOpenChange, boardId }: Props) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>New column</DialogTitle>
+      <DialogContent className="sm:max-w-sm p-6">
+        <DialogHeader className="pb-2 border-b border-border/50">
+          <DialogTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <Columns3 className="w-5 h-5 text-primary" />
+            New Column
+          </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           <div className="space-y-1.5">
-            <Label htmlFor="col-title">Title</Label>
+            <Label htmlFor="col-title" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Column Title <span className="text-destructive">*</span>
+            </Label>
             <Input
               id="col-title"
               value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder="e.g. Review"
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. In Review, QA, Blocked..."
+              className="h-10 text-sm font-medium"
               autoFocus
+              required
             />
           </div>
-          <div className="space-y-1.5">
-            <Label>Color</Label>
-            <div className="flex gap-2 flex-wrap">
-              {PRESET_COLORS.map(c => (
+
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Accent Color
+            </Label>
+            <div className="flex gap-2.5 flex-wrap">
+              {PRESET_COLORS.map((c) => (
                 <button
                   key={c}
                   type="button"
                   onClick={() => setColor(c)}
-                  className="w-7 h-7 rounded-full border-2 transition-all"
+                  className="w-7 h-7 rounded-full border-2 transition-all hover:scale-110"
                   style={{
                     backgroundColor: c,
                     borderColor: color === c ? "#fff" : "transparent",
                     boxShadow: color === c ? `0 0 0 2px ${c}` : "none",
                   }}
+                  aria-label={`Select color ${c}`}
                 />
               ))}
             </div>
           </div>
-          <DialogFooter>
+
+          <DialogFooter className="pt-3 border-t border-border/50">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={!title.trim() || createColumn.isPending}>
-              {createColumn.isPending ? "Adding..." : "Add column"}
+              {createColumn.isPending ? "Adding..." : "Add Column"}
             </Button>
           </DialogFooter>
         </form>

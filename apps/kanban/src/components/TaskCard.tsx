@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Calendar, GripVertical, Trash2, Pencil } from "lucide-react";
+import { Calendar, GripVertical, Trash2, Pencil, AlertCircle, Clock, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Task } from "@workspace/api-client-react";
 import { taskDndId } from "@/lib/dnd";
@@ -14,20 +14,60 @@ interface Props {
   onDelete: (id: number) => void;
 }
 
-const PRIORITY_STYLES: Record<string, string> = {
-  high: "bg-red-100 text-red-700 border border-red-200",
-  medium: "bg-amber-100 text-amber-700 border border-amber-200",
-  low: "bg-emerald-100 text-emerald-700 border border-emerald-200",
-};
+const PRIORITY_CONFIG = {
+  high: {
+    badge: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800/40",
+    dot: "bg-rose-500",
+    border: "border-l-rose-500",
+    label: "High",
+  },
+  medium: {
+    badge: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800/40",
+    dot: "bg-amber-500",
+    border: "border-l-amber-500",
+    label: "Medium",
+  },
+  low: {
+    badge: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/40",
+    dot: "bg-emerald-500",
+    border: "border-l-emerald-500",
+    label: "Low",
+  },
+} as const;
 
-function isOverdue(dueDate: string | null | undefined): boolean {
-  if (!dueDate) return false;
-  return new Date(dueDate) < new Date();
-}
+function getDueDateStatus(dueDateStr: string | null | undefined): {
+  label: string;
+  isOverdue: boolean;
+  isToday: boolean;
+  isSoon: boolean;
+} | null {
+  if (!dueDateStr) return null;
+  const due = new Date(dueDateStr);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
 
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const diffTime = dueDay.getTime() - today.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+  const formatted = due.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+  if (diffDays < 0) {
+    const overdueDays = Math.abs(diffDays);
+    return {
+      label: overdueDays === 1 ? "Overdue (yesterday)" : `Overdue (${overdueDays}d ago)`,
+      isOverdue: true,
+      isToday: false,
+      isSoon: false,
+    };
+  }
+  if (diffDays === 0) {
+    return { label: "Due today", isOverdue: false, isToday: true, isSoon: true };
+  }
+  if (diffDays === 1) {
+    return { label: "Due tomorrow", isOverdue: false, isToday: false, isSoon: true };
+  }
+  return { label: formatted, isOverdue: false, isToday: false, isSoon: false };
 }
 
 function TaskCard({ task, onEdit, onDelete }: Props) {
@@ -41,83 +81,53 @@ function TaskCard({ task, onEdit, onDelete }: Props) {
     transition: isDragging ? undefined : transition,
   };
 
-  const overdue = isOverdue(task.dueDate);
+  const priorityStyle = PRIORITY_CONFIG[task.priority as keyof typeof PRIORITY_CONFIG] ?? PRIORITY_CONFIG.medium;
+  const dueStatus = getDueDateStatus(task.dueDate);
   const assignee = task.assignee;
 
   return (
     <div
       ref={setNodeRef}
       style={style}
+      {...attributes}
+      {...listeners}
       onClick={() => onEdit(task)}
       className={cn(
-        "bg-card border border-card-border rounded-lg p-3 shadow-sm group cursor-pointer",
-        "transition-shadow hover:shadow-md",
-        isDragging && "opacity-40 shadow-xl ring-2 ring-primary/40"
+        "group relative bg-card rounded-xl p-3.5 border border-border/80 shadow-xs cursor-pointer select-none",
+        "border-l-4 transition-all duration-150 hover:shadow-md hover:border-primary/40",
+        priorityStyle.border,
+        isDragging && "opacity-20 shadow-2xl scale-[0.98] ring-2 ring-primary/40"
       )}
     >
-      <div className="flex items-start gap-2">
-        <button
-          type="button"
-          {...attributes}
-          {...listeners}
-          onClick={(e) => e.stopPropagation()}
-          className="mt-0.5 p-0.5 text-muted-foreground/40 hover:text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing flex-shrink-0"
-        >
-          <GripVertical className="w-3.5 h-3.5" />
-        </button>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start gap-2">
-            <p className="text-sm font-medium text-foreground leading-snug break-words flex-1">
-              {task.title}
-            </p>
-            {assignee && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div
-                    className="w-6 h-6 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center text-[10px] font-semibold flex-shrink-0"
-                    aria-label={userDisplayName(assignee)}
-                  >
-                    {userInitials(assignee)}
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>{userDisplayName(assignee)}</TooltipContent>
-              </Tooltip>
-            )}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+          <div
+            className="p-1 -ml-1 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors rounded"
+            aria-label="Drag handle"
+          >
+            <GripVertical className="w-3.5 h-3.5" />
           </div>
-          {task.description && (
-            <p className="text-xs text-muted-foreground mt-1 leading-relaxed line-clamp-2">
-              {task.description}
-            </p>
-          )}
 
-          <div className="flex items-center gap-2 mt-2.5 flex-wrap">
-            <span className={cn("text-[11px] font-medium px-1.5 py-0.5 rounded", PRIORITY_STYLES[task.priority])}>
-              {task.priority}
-            </span>
-            {task.dueDate && (
-              <span className={cn(
-                "flex items-center gap-1 text-[11px]",
-                overdue ? "text-red-600 font-medium" : "text-muted-foreground"
-              )}>
-                <Calendar className="w-3 h-3" />
-                {formatDate(task.dueDate)}
-                {overdue && " (overdue)"}
-              </span>
-            )}
-          </div>
+          <h4 className="text-sm font-semibold text-foreground leading-snug break-words flex-1">
+            {task.title}
+          </h4>
         </div>
 
-        <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+        {/* Hover action buttons */}
+        <div
+          className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
               onEdit(task);
             }}
-            className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors"
+            className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
+            title="Edit task"
           >
-            <Pencil className="w-3 h-3" />
+            <Pencil className="w-3.5 h-3.5" />
           </button>
           <button
             type="button"
@@ -125,11 +135,70 @@ function TaskCard({ task, onEdit, onDelete }: Props) {
               e.stopPropagation();
               onDelete(task.id);
             }}
-            className="p-1 text-muted-foreground hover:text-destructive rounded transition-colors"
+            className="p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
+            title="Delete task"
           >
-            <Trash2 className="w-3 h-3" />
+            <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
+      </div>
+
+      {task.description && (
+        <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed line-clamp-2 pl-3">
+          {task.description}
+        </p>
+      )}
+
+      <div className="flex items-center justify-between gap-2 mt-3 pt-2 border-t border-border/40">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border",
+              priorityStyle.badge
+            )}
+          >
+            <span className={cn("w-1.5 h-1.5 rounded-full", priorityStyle.dot)} />
+            {priorityStyle.label}
+          </span>
+
+          {dueStatus && (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded",
+                dueStatus.isOverdue
+                  ? "bg-red-50 text-red-700 border border-red-200"
+                  : dueStatus.isToday
+                    ? "bg-amber-50 text-amber-700 border border-amber-200 font-semibold"
+                    : "text-muted-foreground"
+              )}
+            >
+              {dueStatus.isOverdue ? (
+                <AlertCircle className="w-3 h-3 text-red-500" />
+              ) : (
+                <Calendar className="w-3 h-3" />
+              )}
+              {dueStatus.label}
+            </span>
+          )}
+        </div>
+
+        {assignee ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div
+                className="w-6 h-6 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center text-[10px] font-bold tracking-tight shrink-0 shadow-2xs hover:scale-105 transition-transform"
+                aria-label={userDisplayName(assignee)}
+              >
+                {userInitials(assignee)}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <span className="font-medium">{userDisplayName(assignee)}</span>
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <div className="w-6 h-6" />
+        )}
       </div>
     </div>
   );

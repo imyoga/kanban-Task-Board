@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -20,9 +20,11 @@ import {
   useUpdateTask,
   useUpdateColumn,
   useDeleteTask,
+  useGetBoardTeam,
   getListColumnsQueryKey,
   getListTasksQueryKey,
   getGetTaskStatsQueryKey,
+  getGetBoardTeamQueryKey,
 } from "@workspace/api-client-react";
 import type { Task, Column } from "@workspace/api-client-react";
 import KanbanColumn from "@/components/KanbanColumn";
@@ -30,96 +32,40 @@ import TaskCard from "@/components/TaskCard";
 import TaskDialog from "@/components/TaskDialog";
 import AddColumnDialog from "@/components/AddColumnDialog";
 import BoardSettingsDialog from "@/components/BoardSettingsDialog";
-import { Plus, Loader2, Settings } from "lucide-react";
+import {
+  Plus,
+  Loader2,
+  Settings,
+  Search,
+  Users,
+  X,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { getTaskFromDndActive, getColumnFromDndActive, columnDndId, resolveTargetColumnId, computeTaskInsertIndex } from "@/lib/dnd";
+import {
+  getTaskFromDndActive,
+  getColumnFromDndActive,
+  columnDndId,
+  buildReorderedTasks,
+} from "@/lib/dnd";
 import { useBoardIdFromRoute } from "@/hooks/useBoardId";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { userDisplayName, userInitials } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
-
-function normalizeTasks(tasks: Task[]) {
-  const seen = new Set<number>();
-  const unique = tasks.filter((task) => {
-    if (seen.has(task.id)) return false;
-    seen.add(task.id);
-    return true;
-  });
-
-  return unique
-    .map((task) => ({ ...task }))
-    .sort((left, right) =>
-      left.columnId === right.columnId
-        ? left.position - right.position || left.id - right.id
-        : left.columnId - right.columnId || left.position - right.position || left.id - right.id,
-    );
-}
-
-function sameTaskLayout(left: Task[], right: Task[]) {
-  if (left.length !== right.length) return false;
-
-  for (let index = 0; index < left.length; index += 1) {
-    if (
-      left[index].id !== right[index].id ||
-      left[index].columnId !== right[index].columnId ||
-      left[index].position !== right[index].position
-    ) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-function projectTaskMove(
-  taskList: Task[],
-  activeTaskId: number,
-  targetColumnId: number,
-  insertIndex?: number,
-) {
-  const sourceTask = taskList.find((task) => task.id === activeTaskId);
-  if (!sourceTask) return taskList;
-
-  const remaining = taskList.filter((task) => task.id !== activeTaskId);
-  const targetTasks = remaining
-    .filter((task) => task.columnId === targetColumnId)
-    .sort((left, right) => left.position - right.position || left.id - right.id);
-
-  const nextInsertIndex =
-    insertIndex == null
-      ? targetTasks.length
-      : Math.max(0, Math.min(insertIndex, targetTasks.length));
-
-  const movedTask = { ...sourceTask, columnId: targetColumnId };
-  const nextTargetTasks = [...targetTasks];
-  nextTargetTasks.splice(nextInsertIndex, 0, movedTask);
-  const reindexedTargetTasks = nextTargetTasks.map((task, index) => ({
-    ...task,
-    position: index,
-  }));
-
-  if (sourceTask.columnId === targetColumnId) {
-    const otherTasks = remaining.filter((task) => task.columnId !== targetColumnId);
-    return normalizeTasks([...otherTasks, ...reindexedTargetTasks]);
-  }
-
-  const sourceTasks = remaining
-    .filter((task) => task.columnId === sourceTask.columnId)
-    .sort((left, right) => left.position - right.position || left.id - right.id);
-  const nextSourceTasks = sourceTasks.map((task, index) => ({ ...task, position: index }));
-  const untouchedTasks = remaining.filter(
-    (task) => task.columnId !== sourceTask.columnId && task.columnId !== targetColumnId,
-  );
-
-  return normalizeTasks([...untouchedTasks, ...nextSourceTasks, ...reindexedTargetTasks]);
-}
+import { cn } from "@/lib/utils";
 
 export default function BoardPage() {
   const boardId = useBoardIdFromRoute()!;
   const [, setLocation] = useLocation();
   const { data: boards = [] } = useListBoards();
-  const board = boards.find(b => b.id === boardId);
+  const board = boards.find((b) => b.id === boardId);
   const { data: columns = [], isLoading: colsLoading } = useListColumns({ boardId });
   const { data: tasks = [], isLoading: tasksLoading } = useListTasks({ boardId });
+  const { data: boardTeam } = useGetBoardTeam(boardId, {
+    query: { queryKey: getGetBoardTeamQueryKey(boardId) },
+  });
+
   const qc = useQueryClient();
   const { toast } = useToast();
   const updateTask = useUpdateTask();
@@ -135,34 +81,68 @@ export default function BoardPage() {
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [defaultColumnId, setDefaultColumnId] = useState<number | undefined>();
 
-  const displayTasks = localTasks ?? tasks;
+  // Filter state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [priorityFilter, setPriorityFilter] = useState<"all" | "high" | "medium" | "low">("all");
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+
+  const baseTasks = localTasks ?? tasks;
   const displayColumns = [...(localColumns ?? columns)].sort((a, b) => a.position - b.position);
+
+  // Apply filters
+  const filteredTasks = useMemo(() => {
+    return baseTasks.filter((task) => {
+      // Text search
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchesTitle = task.title.toLowerCase().includes(q);
+        const matchesDesc = task.description?.toLowerCase().includes(q) ?? false;
+        if (!matchesTitle && !matchesDesc) return false;
+      }
+
+      // Priority filter
+      if (priorityFilter !== "all" && task.priority !== priorityFilter) {
+        return false;
+      }
+
+      // Assignee filter
+      if (assigneeFilter === "unassigned" && task.assigneeId != null) {
+        return false;
+      }
+      if (
+        assigneeFilter !== "all" &&
+        assigneeFilter !== "unassigned" &&
+        task.assigneeId !== Number(assigneeFilter)
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [baseTasks, searchQuery, priorityFilter, assigneeFilter]);
+
+  const hasActiveFilters =
+    searchQuery.trim() !== "" || priorityFilter !== "all" || assigneeFilter !== "all";
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
-  const getTasksForColumn = useCallback((columnId: number) => {
-    return displayTasks
-      .filter((task) => task.columnId === columnId)
-      .sort((left, right) => left.position - right.position || left.id - right.id);
-  }, [displayTasks]);
-
-  function projectTaskDrop(
-    event: DragOverEvent | DragEndEvent,
-    taskList: Task[],
-    activeTaskId: number,
-    targetColumnId: number,
-  ) {
-    const columnTasks = taskList.filter((task) => task.columnId === targetColumnId);
-    const insertIndex = computeTaskInsertIndex(event, columnTasks, activeTaskId);
-    if (insertIndex === undefined) return taskList;
-    return projectTaskMove(taskList, activeTaskId, targetColumnId, insertIndex);
-  }
+  const getTasksForColumn = useCallback(
+    (columnId: number) => {
+      return filteredTasks
+        .filter((task) => task.columnId === columnId)
+        .sort((left, right) => left.position - right.position || left.id - right.id);
+    },
+    [filteredTasks]
+  );
 
   function handleDragStart(event: DragStartEvent) {
-    const task = getTaskFromDndActive(event.active.data.current);
-    if (task) setActiveTask(task);
+    const { active } = event;
+    const task = getTaskFromDndActive(active.data.current);
+    if (task) {
+      setActiveTask(task);
+    }
   }
 
   function handleDragOver(event: DragOverEvent) {
@@ -171,20 +151,48 @@ export default function BoardPage() {
 
     if (getColumnFromDndActive(active.data.current)) return;
 
-    const activeTask = getTaskFromDndActive(active.data.current);
-    if (!activeTask) return;
+    const activeTaskId = Number(String(active.id).replace("task-", ""));
+    if (!activeTaskId || isNaN(activeTaskId)) return;
 
-    const targetColumnId = resolveTargetColumnId(over);
+    const currentList = localTasks ?? tasks;
+    const activeTaskItem = currentList.find((t) => t.id === activeTaskId);
+    if (!activeTaskItem) return;
+
+    const overId = String(over.id);
+    let targetColumnId: number | undefined;
+
+    if (overId.startsWith("column-")) {
+      targetColumnId = Number(overId.replace("column-", ""));
+    } else if (overId.startsWith("task-")) {
+      const overTaskId = Number(overId.replace("task-", ""));
+      const overTask = currentList.find((t) => t.id === overTaskId);
+      targetColumnId = overTask?.columnId;
+    }
+
     if (targetColumnId === undefined) return;
 
-    setLocalTasks((prev) => {
-      const base = prev ?? tasks;
-      const currentTask = base.find((task) => task.id === activeTask.id);
-      if (!currentTask) return prev;
+    // ONLY update localTasks if moving across different columns!
+    // (SortableContext handles intra-column animation smoothly without state thrashing)
+    if (activeTaskItem.columnId !== targetColumnId) {
+      setLocalTasks((prev) => {
+        const base = prev ?? tasks;
+        const moving = base.find((t) => t.id === activeTaskId);
+        if (!moving) return prev;
 
-      const projected = projectTaskDrop(event, base, activeTask.id, targetColumnId);
-      return sameTaskLayout(base, projected) ? prev : projected;
-    });
+        const targetColTasks = base.filter(
+          (t) => t.columnId === targetColumnId && t.id !== activeTaskId
+        );
+        let insertIdx = targetColTasks.length;
+
+        if (overId.startsWith("task-")) {
+          const overTaskId = Number(overId.replace("task-", ""));
+          const overIdx = targetColTasks.findIndex((t) => t.id === overTaskId);
+          if (overIdx >= 0) insertIdx = overIdx;
+        }
+
+        return buildReorderedTasks(base, activeTaskId, targetColumnId, insertIdx);
+      });
+    }
   }
 
   function handleDragCancel(_event: DragCancelEvent) {
@@ -203,21 +211,27 @@ export default function BoardPage() {
       return;
     }
 
+    // Column reordering
     const activeColumn = getColumnFromDndActive(active.data.current);
     if (activeColumn) {
       const overColumn = getColumnFromDndActive(over.data.current);
       const sorted = [...displayColumns];
-      const oldIndex = sorted.findIndex(c => c.id === activeColumn.id);
-      const newIndex = overColumn ? sorted.findIndex(c => c.id === overColumn.id) : oldIndex;
+      const oldIndex = sorted.findIndex((c) => c.id === activeColumn.id);
+      const newIndex = overColumn ? sorted.findIndex((c) => c.id === overColumn.id) : oldIndex;
+
       if (oldIndex === newIndex || newIndex < 0) {
         setLocalColumns(null);
         return;
       }
-      const reordered = arrayMove(sorted, oldIndex, newIndex).map((c, i) => ({ ...c, position: i }));
+
+      const reordered = arrayMove(sorted, oldIndex, newIndex).map((c, i) => ({
+        ...c,
+        position: i,
+      }));
       setLocalColumns(reordered);
 
-      const changed = reordered.filter(c => {
-        const orig = columns.find(o => o.id === c.id);
+      const changed = reordered.filter((c) => {
+        const orig = columns.find((o) => o.id === c.id);
         return orig && orig.position !== c.position;
       });
 
@@ -226,22 +240,15 @@ export default function BoardPage() {
         return;
       }
 
-      let completed = 0;
-      let failed = false;
+      qc.setQueryData(getListColumnsQueryKey({ boardId }), reordered);
+      setLocalColumns(null);
+
       for (const col of changed) {
         updateColumn.mutate(
           { id: col.id, data: { position: col.position } },
           {
-            onSuccess: () => {
-              completed += 1;
-              if (completed === changed.length && !failed) {
-                qc.invalidateQueries({ queryKey: getListColumnsQueryKey({ boardId }) });
-                setLocalColumns(null);
-              }
-            },
             onError: () => {
-              failed = true;
-              setLocalColumns(null);
+              qc.invalidateQueries({ queryKey: getListColumnsQueryKey({ boardId }) });
               toast({ title: "Failed to reorder columns", variant: "destructive" });
             },
           }
@@ -250,44 +257,72 @@ export default function BoardPage() {
       return;
     }
 
-    const activeTaskItem = getTaskFromDndActive(active.data.current);
-    if (!activeTaskItem) {
+    // Task reordering
+    const activeTaskId = Number(String(active.id).replace("task-", ""));
+    if (!activeTaskId || isNaN(activeTaskId)) {
       setLocalTasks(null);
       return;
     }
 
-    const current = localTasks ?? tasks;
-    const targetColumnId = resolveTargetColumnId(over) ?? activeTaskItem.columnId;
-    const reordered = projectTaskDrop(event, current, activeTaskItem.id, targetColumnId);
-
-    const finalTask = reordered.find((task) => task.id === activeTaskItem.id);
-    if (!finalTask) {
+    const currentTasks = localTasks ?? tasks;
+    const currentMovingTask = currentTasks.find((t) => t.id === activeTaskId);
+    if (!currentMovingTask) {
       setLocalTasks(null);
       return;
     }
 
-    const originalTask = tasks.find((task) => task.id === activeTaskItem.id);
-    if (
-      originalTask &&
-      originalTask.columnId === finalTask.columnId &&
-      originalTask.position === finalTask.position
-    ) {
-      setLocalTasks(null);
-      return;
+    const overId = String(over.id);
+    let targetColumnId = currentMovingTask.columnId;
+    let targetIndex = 0;
+
+    if (overId.startsWith("column-")) {
+      targetColumnId = Number(overId.replace("column-", ""));
+      const colTasks = currentTasks.filter(
+        (t) => t.columnId === targetColumnId && t.id !== activeTaskId
+      );
+      targetIndex = colTasks.length;
+    } else if (overId.startsWith("task-")) {
+      const overTaskId = Number(overId.replace("task-", ""));
+      const overTask = currentTasks.find((t) => t.id === overTaskId);
+      if (overTask) {
+        targetColumnId = overTask.columnId;
+        const colTasks = currentTasks
+          .filter((t) => t.columnId === targetColumnId)
+          .sort((a, b) => a.position - b.position || a.id - b.id);
+
+        const oldPos = colTasks.findIndex((t) => t.id === activeTaskId);
+        const overPos = colTasks.findIndex((t) => t.id === overTaskId);
+
+        if (oldPos >= 0 && overPos >= 0) {
+          targetIndex = overPos;
+        } else {
+          const withoutActive = colTasks.filter((t) => t.id !== activeTaskId);
+          const idx = withoutActive.findIndex((t) => t.id === overTaskId);
+          targetIndex = idx >= 0 ? idx : withoutActive.length;
+        }
+      }
     }
 
-    setLocalTasks(reordered);
+    const nextTasks = buildReorderedTasks(
+      currentTasks,
+      activeTaskId,
+      targetColumnId,
+      targetIndex
+    );
+
+    // Optimistically update React Query cache for instant visual feedback
+    qc.setQueryData(getListTasksQueryKey({ boardId }), nextTasks);
+    setLocalTasks(null);
 
     updateTask.mutate(
-      { id: activeTaskItem.id, data: { columnId: finalTask.columnId, position: finalTask.position } },
+      { id: activeTaskId, data: { columnId: targetColumnId, position: targetIndex } },
       {
         onSuccess: () => {
           qc.invalidateQueries({ queryKey: getListTasksQueryKey({ boardId }) });
           qc.invalidateQueries({ queryKey: getGetTaskStatsQueryKey({ boardId }) });
-          setLocalTasks(null);
         },
         onError: () => {
-          setLocalTasks(null);
+          qc.invalidateQueries({ queryKey: getListTasksQueryKey({ boardId }) });
           toast({ title: "Failed to move task", variant: "destructive" });
         },
       }
@@ -305,66 +340,222 @@ export default function BoardPage() {
     setTaskDialogOpen(true);
   }, []);
 
-  const handleDeleteTask = useCallback((id: number) => {
-    if (!confirm("Delete this task?")) return;
-    deleteTask.mutate(
-      { id },
-      {
-        onSuccess: () => {
-          qc.invalidateQueries({ queryKey: getListTasksQueryKey({ boardId }) });
-          qc.invalidateQueries({ queryKey: getGetTaskStatsQueryKey({ boardId }) });
-          toast({ title: "Task deleted" });
-        },
-        onError: () => toast({ title: "Failed to delete task", variant: "destructive" }),
-      }
-    );
-  }, [deleteTask, qc, toast]);
+  const handleDeleteTask = useCallback(
+    (id: number) => {
+      if (!confirm("Delete this task?")) return;
+      deleteTask.mutate(
+        { id },
+        {
+          onSuccess: () => {
+            qc.invalidateQueries({ queryKey: getListTasksQueryKey({ boardId }) });
+            qc.invalidateQueries({ queryKey: getGetTaskStatsQueryKey({ boardId }) });
+            toast({ title: "Task deleted" });
+          },
+          onError: () => toast({ title: "Failed to delete task", variant: "destructive" }),
+        }
+      );
+    },
+    [deleteTask, qc, toast, boardId]
+  );
 
   if (colsLoading || tasksLoading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
     <>
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-background">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-base font-semibold text-foreground">{board?.name ?? "Board"}</h2>
-            {board?.isShared && (
-              <Badge variant="secondary" className="text-[10px]">Shared</Badge>
+      {/* Board Header Bar */}
+      <div className="border-b border-border/80 bg-background/95 backdrop-blur-sm px-6 py-3.5 space-y-3 shrink-0">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          {/* Board Title & Team Info */}
+          <div className="flex items-center gap-3 min-w-0">
+            <div>
+              <div className="flex items-center gap-2.5">
+                <h2 className="text-xl font-bold text-foreground tracking-tight truncate">
+                  {board?.name ?? "Board"}
+                </h2>
+                {boardTeam ? (
+                  <Badge
+                    variant="secondary"
+                    className="gap-1.5 text-xs font-semibold px-2 py-0.5 bg-primary/10 text-primary border-primary/20"
+                  >
+                    <Users className="w-3 h-3" />
+                    {boardTeam.name}
+                  </Badge>
+                ) : board?.isShared ? (
+                  <Badge variant="secondary" className="text-xs font-medium">
+                    Shared
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-xs text-muted-foreground">
+                    Personal
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {filteredTasks.length} {filteredTasks.length === 1 ? "task" : "tasks"}
+                {hasActiveFilters && ` (filtered from ${tasks.length})`} across{" "}
+                {displayColumns.length} columns
+              </p>
+            </div>
+
+            {/* Team Members Avatar Stack */}
+            {boardTeam && boardTeam.members.length > 0 && (
+              <div className="hidden sm:flex items-center -space-x-2 ml-2 pl-3 border-l border-border/60">
+                {boardTeam.members.slice(0, 5).map((m) => (
+                  <Tooltip key={m.userId}>
+                    <TooltipTrigger asChild>
+                      <div className="w-7 h-7 rounded-full bg-primary/15 text-primary border-2 border-background flex items-center justify-center text-[10px] font-bold shadow-2xs hover:scale-110 hover:z-10 transition-transform">
+                        {userInitials(m)}
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      <span>{userDisplayName(m)}</span>
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+                {boardTeam.members.length > 5 && (
+                  <div className="w-7 h-7 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[10px] font-bold text-muted-foreground shadow-2xs">
+                    +{boardTeam.members.length - 5}
+                  </div>
+                )}
+              </div>
             )}
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">{tasks.length} task{tasks.length !== 1 ? "s" : ""} across {displayColumns.length} column{displayColumns.length !== 1 ? "s" : ""}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {board?.isOwner && (
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-2">
+            {board?.isOwner && (
+              <button
+                onClick={() => setSettingsOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-border text-xs font-semibold text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/80 transition-colors shadow-2xs"
+                aria-label="Board settings"
+                title="Board settings & team linking"
+              >
+                <Settings className="w-3.5 h-3.5" />
+                <span>Settings</span>
+              </button>
+            )}
+
             <button
-              onClick={() => setSettingsOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-border text-sm font-medium rounded-lg hover:bg-muted transition-colors"
-              aria-label="Board settings"
+              onClick={() => setAddColumnOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-border text-xs font-semibold text-foreground rounded-lg hover:bg-muted/80 transition-colors shadow-2xs"
             >
-              <Settings className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
+              <span>Column</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setEditTask(null);
+                setDefaultColumnId(displayColumns[0]?.id);
+                setTaskDialogOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/90 transition-all shadow-sm hover:shadow"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Task</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Filter / Search Bar */}
+        <div className="flex items-center gap-2.5 flex-wrap pt-1">
+          {/* Search box */}
+          <div className="relative flex-1 min-w-[200px] max-w-xs">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search tasks..."
+              className="pl-8 h-8 text-xs bg-muted/30"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+
+          {/* Priority filter pills */}
+          <div className="flex items-center gap-1 bg-muted/40 p-0.5 rounded-lg border border-border/60 text-xs">
+            {(["all", "high", "medium", "low"] as const).map((p) => {
+              const isActive = priorityFilter === p;
+              return (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setPriorityFilter(p)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-md capitalize font-medium transition-all text-xs",
+                    isActive
+                      ? "bg-background text-foreground shadow-2xs font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {p}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Assignee filter if team members exist */}
+          {boardTeam && boardTeam.members.length > 0 && (
+            <select
+              value={assigneeFilter}
+              onChange={(e) => setAssigneeFilter(e.target.value)}
+              className="h-8 px-2.5 rounded-lg border border-border bg-background text-xs font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            >
+              <option value="all">All Assignees</option>
+              <option value="unassigned">Unassigned</option>
+              {boardTeam.members.map((m) => (
+                <option key={m.userId} value={String(m.userId)}>
+                  {userDisplayName(m)}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {/* Clear filters button */}
+          {hasActiveFilters && (
+            <button
+              onClick={() => {
+                setSearchQuery("");
+                setPriorityFilter("all");
+                setAssigneeFilter("all");
+              }}
+              className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-destructive transition-colors px-2 py-1"
+            >
+              <X className="w-3 h-3" />
+              Reset filters
             </button>
           )}
-          <button
-            onClick={() => { setEditTask(null); setDefaultColumnId(displayColumns[0]?.id); setTaskDialogOpen(true); }}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add task
-          </button>
         </div>
       </div>
 
-      <DndContext collisionDetection={closestCorners} sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
+      {/* Kanban Board Drag-and-Drop Area */}
+      <DndContext
+        collisionDetection={closestCorners}
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+      >
         <div className="flex-1 overflow-x-auto px-6 py-5">
           <div className="flex gap-4 h-full items-start">
-            <SortableContext items={displayColumns.map(c => columnDndId(c.id))} strategy={horizontalListSortingStrategy}>
-              {displayColumns.map(col => (
+            <SortableContext
+              items={displayColumns.map((c) => columnDndId(c.id))}
+              strategy={horizontalListSortingStrategy}
+            >
+              {displayColumns.map((col) => (
                 <KanbanColumn
                   key={col.id}
                   column={col}
@@ -377,19 +568,23 @@ export default function BoardPage() {
               ))}
             </SortableContext>
 
+            {/* Quick new column button */}
             <button
               onClick={() => setAddColumnOpen(true)}
-              className="flex-shrink-0 w-72 flex items-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-border text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+              className="shrink-0 w-80 h-32 flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border/80 hover:border-primary/50 text-sm font-medium text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all group"
             >
-              <Plus className="w-4 h-4" />
-              New column
+              <div className="w-8 h-8 rounded-full bg-muted group-hover:bg-primary/10 flex items-center justify-center transition-colors">
+                <Plus className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+              </div>
+              <span>Add New Column</span>
             </button>
           </div>
         </div>
 
-        <DragOverlay>
+        {/* Drag Overlay for smooth dragging preview */}
+        <DragOverlay dropAnimation={null}>
           {activeTask ? (
-            <div className="rotate-1 opacity-90 shadow-xl">
+            <div className="rotate-2 scale-105 opacity-95 shadow-2xl pointer-events-none w-72">
               <TaskCard task={activeTask} onEdit={() => {}} onDelete={() => {}} />
             </div>
           ) : null}
@@ -411,7 +606,7 @@ export default function BoardPage() {
           open={settingsOpen}
           onOpenChange={setSettingsOpen}
           onDeleted={() => {
-            const remaining = boards.filter(b => b.id !== boardId);
+            const remaining = boards.filter((b) => b.id !== boardId);
             setLocation(remaining[0] ? `/boards/${remaining[0].id}` : "/");
           }}
         />

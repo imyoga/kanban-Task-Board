@@ -56,9 +56,9 @@ app.use(
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: isProduction,
+      secure: "auto",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      sameSite: isProduction ? "none" : "lax",
+      sameSite: "lax",
     },
   }),
 );

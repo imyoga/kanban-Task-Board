@@ -52,6 +52,8 @@ pnpm --filter @workspace/api-spec run codegen   # regenerate Zod schemas & React
 # Quality & Typecheck
 pnpm typecheck        # typecheck all packages and apps (tsc --build + per-app tsc)
 pnpm build            # typecheck + production build across all packages
+pnpm start            # run production Express server (serves API + static frontend bundle)
+pnpm prod             # build all packages and run production server
 ```
 
 ## Git remotes

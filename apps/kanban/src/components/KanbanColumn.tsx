@@ -2,7 +2,7 @@ import { memo, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Plus, MoreHorizontal, Pencil, Trash2, GripVertical } from "lucide-react";
+import { Plus, MoreHorizontal, Pencil, Trash2, GripVertical, Sparkles } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useDeleteColumn,
@@ -19,6 +19,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,11 @@ interface Props {
   onEditTask: (task: Task) => void;
   onDeleteTask: (id: number) => void;
 }
+
+const PRESET_COLORS = [
+  "#6366f1", "#8b5cf6", "#ec4899", "#ef4444",
+  "#f59e0b", "#10b981", "#06b6d4", "#3b82f6",
+];
 
 function KanbanColumn({ column, boardId, tasks, onAddTask, onEditTask, onDeleteTask }: Props) {
   const {
@@ -98,6 +104,17 @@ function KanbanColumn({ column, boardId, tasks, onAddTask, onEditTask, onDeleteT
     );
   }
 
+  function handleChangeColor(color: string) {
+    updateColumn.mutate(
+      { id: column.id, data: { color } },
+      {
+        onSuccess: () => {
+          qc.invalidateQueries({ queryKey: getListColumnsQueryKey({ boardId }) });
+        },
+      }
+    );
+  }
+
   const accentColor = column.color ?? "#6366f1";
 
   return (
@@ -105,68 +122,121 @@ function KanbanColumn({ column, boardId, tasks, onAddTask, onEditTask, onDeleteT
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex flex-col w-72 flex-shrink-0 rounded-xl border border-border bg-muted/50 transition-colors",
-        isOver && "bg-primary/5 border-primary/30",
-        isDragging && "opacity-50 shadow-lg ring-2 ring-primary/30"
+        "flex flex-col w-80 flex-shrink-0 rounded-2xl border border-border/80 bg-muted/40 backdrop-blur-xs transition-all",
+        isOver && "bg-primary/10 border-primary/40 ring-2 ring-primary/20",
+        isDragging && "opacity-40 shadow-2xl scale-[0.98] ring-2 ring-primary/40"
       )}
     >
+      {/* Column top color bar */}
+      <div
+        className="h-1.5 w-full rounded-t-2xl transition-colors"
+        style={{ backgroundColor: accentColor }}
+      />
+
       {/* Column header */}
-      <div className="flex items-center gap-2 px-3 pt-3 pb-2">
-        <button
-          {...attributes}
-          {...listeners}
-          className="p-0.5 text-muted-foreground/50 hover:text-muted-foreground cursor-grab active:cursor-grabbing flex-shrink-0"
-          aria-label="Drag column"
-        >
-          <GripVertical className="w-3.5 h-3.5" />
-        </button>
-
-        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: accentColor }} />
-
-        {editingTitle ? (
-          <Input
-            className="h-6 text-sm font-semibold py-0 px-1 border-none shadow-none bg-transparent focus-visible:ring-0"
-            value={titleValue}
-            onChange={e => setTitleValue(e.target.value)}
-            onBlur={handleRenameSubmit}
-            onKeyDown={e => { if (e.key === "Enter") handleRenameSubmit(); if (e.key === "Escape") { setEditingTitle(false); setTitleValue(column.title); } }}
-            autoFocus
-          />
-        ) : (
-          <span
-            className="flex-1 text-sm font-semibold text-foreground cursor-pointer"
-            onDoubleClick={() => setEditingTitle(true)}
+      <div className="flex items-center justify-between gap-2 px-3.5 pt-3 pb-2">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <button
+            {...attributes}
+            {...listeners}
+            className="p-1 -ml-1 text-muted-foreground/40 hover:text-foreground cursor-grab active:cursor-grabbing rounded transition-colors"
+            aria-label="Drag column"
           >
-            {column.title}
+            <GripVertical className="w-3.5 h-3.5" />
+          </button>
+
+          {editingTitle ? (
+            <Input
+              className="h-7 text-sm font-semibold py-0 px-1.5 border-primary shadow-xs bg-background focus-visible:ring-1"
+              value={titleValue}
+              onChange={(e) => setTitleValue(e.target.value)}
+              onBlur={handleRenameSubmit}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleRenameSubmit();
+                if (e.key === "Escape") {
+                  setEditingTitle(false);
+                  setTitleValue(column.title);
+                }
+              }}
+              autoFocus
+            />
+          ) : (
+            <h3
+              className="font-semibold text-sm text-foreground truncate cursor-pointer hover:text-primary transition-colors flex-1"
+              onDoubleClick={() => setEditingTitle(true)}
+              title="Double click to rename"
+            >
+              {column.title}
+            </h3>
+          )}
+
+          <span className="text-xs font-semibold text-muted-foreground bg-background/80 border border-border/60 rounded-full px-2 py-0.5 shadow-2xs">
+            {tasks.length}
           </span>
-        )}
+        </div>
 
-        <span className="text-xs font-medium text-muted-foreground bg-muted rounded-full px-2 py-0.5">
-          {tasks.length}
-        </span>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => onAddTask(column.id)}
+            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-background/80 transition-colors"
+            title="Add task to column"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-border transition-colors">
-              <MoreHorizontal className="w-3.5 h-3.5" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setEditingTitle(true)}>
-              <Pencil className="w-3.5 h-3.5 mr-2" /> Rename
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleDelete} className="text-destructive focus:text-destructive">
-              <Trash2 className="w-3.5 h-3.5 mr-2" /> Delete column
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-background/80 transition-colors">
+                <MoreHorizontal className="w-4 h-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => setEditingTitle(true)}>
+                <Pencil className="w-3.5 h-3.5 mr-2" /> Rename column
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+
+              <div className="p-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                  Change color
+                </p>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {PRESET_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => handleChangeColor(c)}
+                      className="w-5 h-5 rounded-full border transition-transform hover:scale-110"
+                      style={{
+                        backgroundColor: c,
+                        borderColor: accentColor === c ? "#fff" : "transparent",
+                        boxShadow: accentColor === c ? `0 0 0 2px ${c}` : "none",
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem
+                onClick={handleDelete}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="w-3.5 h-3.5 mr-2" /> Delete column
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
-      {/* Tasks */}
-      <div className="flex-1 px-2 pb-2 overflow-y-auto max-h-[calc(100vh-180px)]">
-        <SortableContext items={tasks.map(t => taskDndId(t.id))} strategy={verticalListSortingStrategy}>
-          <div className="space-y-2">
-            {tasks.map(task => (
+      {/* Tasks container */}
+      <div className="flex-1 px-2.5 pb-2.5 overflow-y-auto max-h-[calc(100vh-210px)] min-h-[140px] space-y-2">
+        <SortableContext items={tasks.map((t) => taskDndId(t.id))} strategy={verticalListSortingStrategy}>
+          <div className="space-y-2.5">
+            {tasks.map((task) => (
               <TaskCard
                 key={task.id}
                 task={task}
@@ -178,22 +248,30 @@ function KanbanColumn({ column, boardId, tasks, onAddTask, onEditTask, onDeleteT
         </SortableContext>
 
         {tasks.length === 0 && (
-          <div className="flex items-center justify-center h-20 text-xs text-muted-foreground/60 border-2 border-dashed border-border rounded-lg mt-1">
-            Drop tasks here
-          </div>
+          <button
+            type="button"
+            onClick={() => onAddTask(column.id)}
+            className="w-full flex flex-col items-center justify-center h-28 text-xs text-muted-foreground/60 hover:text-foreground border-2 border-dashed border-border/80 hover:border-primary/40 rounded-xl transition-all group"
+          >
+            <Plus className="w-4 h-4 mb-1 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+            <span>Drop tasks or click to add</span>
+          </button>
         )}
       </div>
 
-      {/* Add task button */}
-      <div className="px-2 pb-2">
-        <button
-          onClick={() => onAddTask(column.id)}
-          className="w-full flex items-center gap-1.5 px-2 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-border rounded-lg transition-colors"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Add task
-        </button>
-      </div>
+      {/* Add task footer */}
+      {tasks.length > 0 && (
+        <div className="px-2.5 pb-2.5">
+          <button
+            type="button"
+            onClick={() => onAddTask(column.id)}
+            className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-background/80 border border-transparent hover:border-border/60 rounded-xl transition-all"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add task</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
