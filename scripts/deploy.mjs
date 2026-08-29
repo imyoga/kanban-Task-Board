@@ -5,12 +5,20 @@ const REMOTE_APP_DIR = "C:\\Users\\yoges\\Desktop\\Development\\app13-45013-kanb
 const SERVICE_NAME = "app13-45013-kanban-task-board";
 const LIVE_URL = "https://kanban-task-board.ym-apps.live/";
 
+const isLocal =
+  process.cwd().toLowerCase() === REMOTE_APP_DIR.toLowerCase() ||
+  process.env.DEPLOY_LOCAL === "true";
+
 function runLocal(cmd) {
   console.log(`\n> [LOCAL] ${cmd}`);
   execSync(cmd, { stdio: "inherit" });
 }
 
 function runRemote(remoteCmd) {
+  if (isLocal) {
+    runLocal(remoteCmd);
+    return;
+  }
   console.log(`\n> [REMOTE] ${remoteCmd}`);
   const sshCmd = `ssh ${SSH_TARGET} "cd ${REMOTE_APP_DIR} ; ${remoteCmd}"`;
   execSync(sshCmd, { stdio: "inherit" });
@@ -37,17 +45,19 @@ async function verifyHealth() {
 
 async function main() {
   console.log("==================================================");
-  console.log("🚀 Starting Automated Remote Deployment");
-  console.log(`• Target SSH Host: ${SSH_TARGET}`);
-  console.log(`• Remote Path:     ${REMOTE_APP_DIR}`);
+  console.log(`🚀 Starting Automated Deployment (${isLocal ? "Local Host" : "Remote SSH"})`);
+  console.log(`• Target:          ${isLocal ? "Local Machine" : SSH_TARGET}`);
+  console.log(`• Path:            ${REMOTE_APP_DIR}`);
   console.log(`• Service Name:    ${SERVICE_NAME}`);
   console.log("==================================================");
 
   // 1. Push local changes to GitHub
   runLocal("git push origin main");
 
-  // 2. Pull latest code on remote server
-  runRemote("git pull origin main");
+  // 2. Pull latest code if remote, or ensure up-to-date
+  if (!isLocal) {
+    runRemote("git pull origin main");
+  }
 
   // 3. Sync dependencies
   runRemote("pnpm install");
