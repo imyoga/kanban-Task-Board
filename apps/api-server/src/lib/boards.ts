@@ -118,65 +118,43 @@ export async function createDefaultBoardForUser(userId: number, name = "My Board
 }
 
 export async function migrateUsersToBoards() {
-  const columns = await db.select().from(columnsTable);
-  const tasks = await db.select().from(tasksTable);
+  const columnsWithoutBoard = await db
+    .select()
+    .from(columnsTable)
+    .where(sql`${columnsTable.boardId} IS NULL OR ${columnsTable.boardId} = 0`);
+  const tasksWithoutBoard = await db
+    .select()
+    .from(tasksTable)
+    .where(sql`${tasksTable.boardId} IS NULL OR ${tasksTable.boardId} = 0`);
 
   const userIds = new Set<number>();
-  for (const column of columns) userIds.add(column.userId);
-  for (const task of tasks) userIds.add(task.userId);
+  for (const column of columnsWithoutBoard) userIds.add(column.userId);
+  for (const task of tasksWithoutBoard) userIds.add(task.userId);
 
   for (const userId of userIds) {
-    const [existingBoard] = await db
+    let [existingBoard] = await db
       .select()
       .from(boardsTable)
       .where(eq(boardsTable.ownerId, userId))
       .limit(1);
 
-    if (existingBoard) {
-      const userColumns = columns.filter((c) => c.userId === userId);
-      for (const column of userColumns) {
-        if (column.boardId !== existingBoard.id) {
-          await db
-            .update(columnsTable)
-            .set({ boardId: existingBoard.id })
-            .where(eq(columnsTable.id, column.id));
-        }
-      }
-      const userTasks = tasks.filter((t) => t.userId === userId);
-      for (const task of userTasks) {
-        if (task.boardId !== existingBoard.id) {
-          await db
-            .update(tasksTable)
-            .set({ boardId: existingBoard.id })
-            .where(eq(tasksTable.id, task.id));
-        }
-      }
-      continue;
+    if (!existingBoard) {
+      existingBoard = await createDefaultBoardForUser(userId);
     }
 
-    const userColumns = columns.filter((c) => c.userId === userId);
-    if (userColumns.length === 0) {
-      await createDefaultBoardForUser(userId);
-      continue;
-    }
-
-    const [board] = await db
-      .insert(boardsTable)
-      .values({ ownerId: userId, name: "My Board" })
-      .returning();
-
+    const userColumns = columnsWithoutBoard.filter((c) => c.userId === userId);
     for (const column of userColumns) {
       await db
         .update(columnsTable)
-        .set({ boardId: board.id })
+        .set({ boardId: existingBoard.id })
         .where(eq(columnsTable.id, column.id));
     }
 
-    const userTasks = tasks.filter((t) => t.userId === userId);
+    const userTasks = tasksWithoutBoard.filter((t) => t.userId === userId);
     for (const task of userTasks) {
       await db
         .update(tasksTable)
-        .set({ boardId: board.id })
+        .set({ boardId: existingBoard.id })
         .where(eq(tasksTable.id, task.id));
     }
   }
