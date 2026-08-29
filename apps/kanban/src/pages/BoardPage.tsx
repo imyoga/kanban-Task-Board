@@ -101,7 +101,10 @@ export default function BoardPage() {
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
 
   const baseTasks = localTasks ?? tasks;
-  const displayColumns = [...(localColumns ?? columns)].sort((a, b) => a.position - b.position);
+  const displayColumns = useMemo(
+    () => [...(localColumns ?? columns)].sort((a, b) => a.position - b.position),
+    [localColumns, columns]
+  );
 
   // Apply filters
   const filteredTasks = useMemo(() => {

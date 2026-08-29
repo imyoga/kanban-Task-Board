@@ -106,12 +106,15 @@ export default function TaskDialog({
     [boardTeam?.members],
   );
 
+  // Initialize form fields only when dialog opens or the target task changes
   useEffect(() => {
+    if (!open) return;
+
     if (editTask) {
       setTitle(editTask.title);
       setDescription(editTask.description ?? "");
       setColumnId(editTask.columnId);
-      setPriority(editTask.priority as "low" | "medium" | "high");
+      setPriority((editTask.priority as "low" | "medium" | "high") || "medium");
       setDueDate(editTask.dueDate ?? "");
       setAssigneeId(editTask.assigneeId ? String(editTask.assigneeId) : "none");
     } else {
@@ -122,7 +125,14 @@ export default function TaskDialog({
       setDueDate("");
       setAssigneeId("none");
     }
-  }, [editTask?.id, open, defaultColumnId, uniqueColumns]);
+  }, [open, editTask?.id]);
+
+  // Set fallback columnId for a new task when columns load asynchronously, without resetting user input
+  useEffect(() => {
+    if (open && !editTask && columnId === 0 && uniqueColumns.length > 0) {
+      setColumnId(defaultColumnId ?? uniqueColumns[0]?.id ?? 0);
+    }
+  }, [open, editTask, columnId, defaultColumnId, uniqueColumns]);
 
   function invalidate() {
     qc.invalidateQueries({ queryKey: getListTasksQueryKey({ boardId }) });

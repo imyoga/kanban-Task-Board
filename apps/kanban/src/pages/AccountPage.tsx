@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMe, useUpdateProfile } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,9 +11,11 @@ export default function AccountPage() {
   const { toast } = useToast();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const initializedUserIdRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (user) {
+    if (user && initializedUserIdRef.current !== user.id) {
+      initializedUserIdRef.current = user.id;
       setFirstName(user.firstName);
       setLastName(user.lastName);
     }
