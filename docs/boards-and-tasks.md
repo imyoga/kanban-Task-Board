@@ -14,13 +14,30 @@ Provides the core Kanban board experience: creating and customizing boards, mana
 |---|---|
 | `apps/kanban/src/pages/BoardPage.tsx` | Main board view, drag-and-drop context, column layout, dialog triggers |
 | `apps/kanban/src/components/KanbanColumn.tsx` | Droppable column container with task list and quick add button |
-| `apps/kanban/src/components/TaskCard.tsx` | Draggable task card rendering title, priority badges, tags, assignee, due date |
-| `apps/kanban/src/components/TaskDialog.tsx` | Modal form for creating and updating tasks |
+| `apps/kanban/src/components/TaskCard.tsx` | Draggable task card rendering title, priority badges, tags, assignee, due date, and stripped HTML description snippet |
+| `apps/kanban/src/components/TaskDialog.tsx` | Modal form for creating and updating tasks with expanded WYSIWYG rich text editor layout |
+| `apps/kanban/src/components/RichTextEditor.tsx` | TipTap-based WYSIWYG rich text editor supporting inline formatting, screenshot clipboard pasting, drag-and-drop, S/M/L image sizing, and corner resizing |
 | `apps/kanban/src/lib/dnd.ts` | DnD helper calculations for column/task identifier parsing and target insertion |
 | `apps/api-server/src/routes/boards.ts` | Board CRUD and team linking endpoints |
 | `apps/api-server/src/routes/columns.ts` | Column CRUD and default column creation |
 | `apps/api-server/src/routes/tasks.ts` | Task CRUD, stats endpoint, and positional move reordering |
 | `apps/api-server/src/lib/taskOrder.ts` | Positional indexing logic for calculating target positions |
+
+---
+
+## WYSIWYG Rich Text Descriptions & Image Sizing (TipTap)
+
+Task descriptions support a single, Word-style **WYSIWYG** editing experience via `RichTextEditor` powered by **TipTap** (ProseMirror):
+
+- **Single Canvas Visual Editing**: No preview tabs, split panes, or raw syntax. Formats are applied directly inline (bold, italic, underline, strike, headings H1-H3, bullet/numbered lists, task checklists, quotes, code blocks, links).
+- **Inline Screenshot Pasting & Drag-and-Drop**: Capturing clipboard screenshots (`Ctrl+V`) or dragging image files directly embeds them inline.
+- **S / M / L Image Sizing**:
+  - `S` (Small): ~220px max-width.
+  - `M` (Medium, default): ~460px standard width.
+  - `L` (Large): 100% full container width.
+  - Hovering or clicking an image reveals an active floating badge with `[S] [M] [L]` size selectors, full-screen lightbox zoom, and remove button.
+- **Expandable Box & No Horizontal Scroll**: The editor is vertically resizable from the corner (`resize-y`) with smooth vertical scrolling (`overflow-y-auto`) and strict `overflow-x-hidden` prevention of horizontal scrollbars.
+- **Board Card Preview Cleanliness**: `stripHtmlPreview` strips HTML tags and base64 image strings from the 2-line preview on `TaskCard` so Kanban boards remain clean and uncluttered.
 
 ---
 

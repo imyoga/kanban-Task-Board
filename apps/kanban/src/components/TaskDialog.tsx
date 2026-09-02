@@ -19,7 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import RichTextEditor from "@/components/RichTextEditor";
 import {
   Select,
   SelectContent,
@@ -192,7 +192,7 @@ export default function TaskDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg p-6">
+      <DialogContent className="sm:max-w-2xl max-h-[92vh] overflow-y-auto p-6">
         <DialogHeader className="pb-2 border-b border-border/50">
           <DialogTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
             <Layout className="w-5 h-5 text-primary" />
@@ -217,18 +217,16 @@ export default function TaskDialog({
             />
           </div>
 
-          {/* Description */}
+          {/* Description - MS Word style WYSIWYG Editor */}
           <div className="space-y-1.5">
             <Label htmlFor="task-desc" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Description
+              Description &amp; Notes
             </Label>
-            <Textarea
+            <RichTextEditor
               id="task-desc"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Add more details or acceptance criteria..."
-              rows={3}
-              className="text-sm resize-none"
+              onChange={setDescription}
+              placeholder="Write description, format with toolbar, or paste screenshots (Ctrl+V)..."
             />
           </div>
 

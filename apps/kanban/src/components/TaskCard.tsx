@@ -7,6 +7,7 @@ import type { Task } from "@workspace/api-client-react";
 import { taskDndId } from "@/lib/dnd";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { userDisplayName, userInitials } from "@/hooks/useAuth";
+import { stripHtmlPreview } from "@/components/RichTextEditor";
 
 interface Props {
   task: Task;
@@ -145,7 +146,7 @@ function TaskCard({ task, onEdit, onDelete }: Props) {
 
       {task.description && (
         <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed line-clamp-2 pl-3">
-          {task.description}
+          {stripHtmlPreview(task.description)}
         </p>
       )}
 
@@ -230,7 +231,7 @@ export function TaskCardPreview({ task }: { task: Task }) {
 
       {task.description && (
         <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed line-clamp-2 pl-3">
-          {task.description}
+          {stripHtmlPreview(task.description)}
         </p>
       )}
 
