@@ -31,7 +31,8 @@ Agent context: [AGENTS.md](../AGENTS.md) · [GEMINI.md](../GEMINI.md) · [CLAUDE
 | Path | Component | Purpose |
 |---|---|---|
 | `/` | `HomeRedirect` | Redirects authenticated users to first board; redirects unauthenticated users to `/login` |
-| `/login` | `LoginPage` | User login and registration forms with validation |
+| `/login` | `LoginPage` | User login, registration, and password reset request forms |
+| `/reset-password` | `ResetPasswordPage` | Dedicated token verification and password reset form |
 | `/b/:boardId` | `BoardPage` | Interactive Kanban board with columns, task cards, and drag-and-drop |
 | `/teams` | `TeamsPage` | Team management, member invites, invite codes, and team boards |
 | `/stats` | `StatsPage` | Visual analytics and task completion distribution charts |

@@ -1,4 +1,4 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,6 +7,7 @@ import BoardPage from "@/pages/BoardPage";
 import StatsPage from "@/pages/StatsPage";
 import HomeRedirect from "@/pages/HomeRedirect";
 import LoginPage from "@/pages/LoginPage";
+import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import TeamsPage from "@/pages/TeamsPage";
 import AccountPage from "@/pages/AccountPage";
 import Layout from "@/components/Layout";
@@ -35,6 +36,12 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 }
 
 function Router() {
+  const [location] = useLocation();
+
+  if (location === "/reset-password" || location.startsWith("/reset-password")) {
+    return <ResetPasswordPage />;
+  }
+
   return (
     <AuthGate>
       <Layout>

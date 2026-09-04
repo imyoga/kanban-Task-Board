@@ -25,7 +25,7 @@ DATABASE_URL=postgresql://kanban:kanban@127.0.0.1:5432/kanban
 SESSION_SECRET=your-session-secret-key
 CLIENT_ORIGIN=http://localhost:5173
 SMTP_USER=moradiyayogeshg@gmail.com
-GOOGLE_APP_PASSWORD=mdibubwwckphflkb
+GOOGLE_APP_PASSWORD=your-google-app-password
 ```
 
 ### 2. Install Dependencies

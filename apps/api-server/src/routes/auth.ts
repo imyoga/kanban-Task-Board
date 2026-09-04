@@ -1,9 +1,12 @@
+import crypto from "node:crypto";
 import { Router } from "express";
 import bcrypt from "bcryptjs";
-import { db, usersTable, boardsTable, teamInvitesTable, teamsTable } from "@workspace/db";
+import { db, usersTable, boardsTable, teamInvitesTable, teamsTable, passwordResetTokensTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { createDefaultBoardForUser } from "../lib/boards";
 import { normalizeEmail, acceptPendingInvitesForUser } from "../lib/teams";
+import { sendPasswordResetEmail } from "../lib/mailer";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -197,6 +200,125 @@ router.post("/auth/login", async (req, res) => {
 router.post("/auth/logout", (req, res) => {
   req.session.destroy(() => {
     res.json({ ok: true });
+  });
+});
+
+router.post("/auth/forgot-password", async (req, res) => {
+  const { email } = req.body as { email?: string };
+  if (!email || !EMAIL_RE.test(normalizeEmail(email))) {
+    res.status(400).json({ error: "Please enter a valid email address" });
+    return;
+  }
+
+  const normalizedEmail = normalizeEmail(email);
+  const [user] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.email, normalizedEmail))
+    .limit(1);
+
+  if (user) {
+    try {
+      await db
+        .delete(passwordResetTokensTable)
+        .where(eq(passwordResetTokensTable.userId, user.id));
+
+      const token = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+      await db.insert(passwordResetTokensTable).values({
+        userId: user.id,
+        token,
+        expiresAt,
+      });
+
+      await sendPasswordResetEmail({
+        to: user.email,
+        resetToken: token,
+        userName: user.firstName,
+      });
+    } catch (err) {
+      logger.error({ err, userId: user.id }, "Failed to send password reset email");
+    }
+  }
+
+  res.json({
+    ok: true,
+    message: "If an account exists with this email, a password reset link has been sent.",
+  });
+});
+
+router.get("/auth/reset-password/:token", async (req, res) => {
+  const token = req.params.token;
+  if (!token) {
+    res.status(400).json({ error: "Reset token is required" });
+    return;
+  }
+
+  const [resetRecord] = await db
+    .select({
+      id: passwordResetTokensTable.id,
+      expiresAt: passwordResetTokensTable.expiresAt,
+      userEmail: usersTable.email,
+    })
+    .from(passwordResetTokensTable)
+    .innerJoin(usersTable, eq(passwordResetTokensTable.userId, usersTable.id))
+    .where(eq(passwordResetTokensTable.token, token))
+    .limit(1);
+
+  if (!resetRecord || resetRecord.expiresAt < new Date()) {
+    res.status(400).json({ error: "This password reset link is invalid or has expired." });
+    return;
+  }
+
+  res.json({
+    valid: true,
+    email: resetRecord.userEmail,
+  });
+});
+
+router.post("/auth/reset-password", async (req, res) => {
+  const { token, newPassword } = req.body as { token?: string; newPassword?: string };
+
+  if (!token || !newPassword) {
+    res.status(400).json({ error: "Token and new password are required" });
+    return;
+  }
+
+  if (newPassword.length < MIN_PASSWORD_LENGTH) {
+    res.status(400).json({
+      error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+    });
+    return;
+  }
+
+  const [resetRecord] = await db
+    .select()
+    .from(passwordResetTokensTable)
+    .where(eq(passwordResetTokensTable.token, token))
+    .limit(1);
+
+  if (!resetRecord || resetRecord.expiresAt < new Date()) {
+    res.status(400).json({
+      error: "This password reset link is invalid or has expired. Please request a new one.",
+    });
+    return;
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+
+  await db
+    .update(usersTable)
+    .set({ passwordHash })
+    .where(eq(usersTable.id, resetRecord.userId));
+
+  await db
+    .delete(passwordResetTokensTable)
+    .where(eq(passwordResetTokensTable.userId, resetRecord.userId));
+
+  res.json({
+    ok: true,
+    message: "Your password has been successfully reset. You can now sign in.",
   });
 });
 

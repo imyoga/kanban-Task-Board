@@ -12,9 +12,8 @@ out-tsc
 node_modules
 
 # environment
-.env
-.env.local
-.env.*.local
+.env*
+!.env.example
 
 # IDEs and editors
 /.idea

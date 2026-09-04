@@ -143,6 +143,59 @@ export function useLogout() {
   });
 }
 
+export interface ResetTokenPreview {
+  valid: boolean;
+  email: string;
+}
+
+export async function requestPasswordReset(email: string): Promise<{ ok: boolean; message: string }> {
+  const res = await fetch(`${BASE}/api/auth/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) {
+    throw new Error(await parseError(res, "Failed to request password reset"));
+  }
+  return res.json();
+}
+
+export async function verifyResetToken(token: string): Promise<ResetTokenPreview> {
+  const res = await fetch(`${BASE}/api/auth/reset-password/${encodeURIComponent(token)}`);
+  if (!res.ok) {
+    throw new Error(await parseError(res, "This password reset link is invalid or has expired"));
+  }
+  return res.json();
+}
+
+export async function resetPassword(
+  token: string,
+  newPassword: string,
+): Promise<{ ok: boolean; message: string }> {
+  const res = await fetch(`${BASE}/api/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, newPassword }),
+  });
+  if (!res.ok) {
+    throw new Error(await parseError(res, "Failed to reset password"));
+  }
+  return res.json();
+}
+
+export function useForgotPassword() {
+  return useMutation({
+    mutationFn: (email: string) => requestPasswordReset(email),
+  });
+}
+
+export function useResetPassword() {
+  return useMutation({
+    mutationFn: ({ token, newPassword }: { token: string; newPassword: string }) =>
+      resetPassword(token, newPassword),
+  });
+}
+
 export function userInitials(user: { firstName: string; lastName: string }) {
   const first = user.firstName?.[0] ?? "";
   const last = user.lastName?.[0] ?? "";
