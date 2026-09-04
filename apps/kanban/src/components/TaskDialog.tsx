@@ -193,7 +193,7 @@ export default function TaskDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[92vh] overflow-y-auto p-6">
+      <DialogContent className="sm:max-w-2xl w-full max-w-[calc(100vw-2rem)] max-h-[92vh] overflow-y-auto overflow-x-hidden p-6">
         <DialogHeader className="pb-2 border-b border-border/50">
           <DialogTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
             <Layout className="w-5 h-5 text-primary" />
@@ -201,9 +201,9 @@ export default function TaskDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2 w-full max-w-full min-w-0">
           {/* Title */}
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 w-full max-w-full min-w-0">
             <Label htmlFor="task-title" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Task Title <span className="text-destructive">*</span>
             </Label>
@@ -212,14 +212,14 @@ export default function TaskDialog({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="What needs to be done?"
-              className="text-sm font-medium h-10"
+              className="text-sm font-medium h-10 w-full min-w-0"
               autoFocus
               required
             />
           </div>
 
           {/* Description - MS Word style WYSIWYG Editor */}
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 w-full max-w-full min-w-0">
             <Label htmlFor="task-desc" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Description &amp; Notes
             </Label>
@@ -228,14 +228,17 @@ export default function TaskDialog({
               value={description}
               onChange={setDescription}
               placeholder="Write description, format with toolbar, or paste screenshots (Ctrl+V)..."
+              className="w-full max-w-full min-w-0"
             />
           </div>
 
           {/* Attachments Section */}
-          <TaskAttachments taskId={editTask?.id} isEdit={isEdit} />
+          <div className="w-full max-w-full min-w-0">
+            <TaskAttachments taskId={editTask?.id} isEdit={isEdit} />
+          </div>
 
           {/* Column & Priority Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full min-w-0">
             {/* Column selector */}
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -291,7 +294,7 @@ export default function TaskDialog({
           </div>
 
           {/* Assignee & Due Date Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full min-w-0">
             {/* Assignee selector */}
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">

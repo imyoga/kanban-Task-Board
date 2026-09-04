@@ -152,7 +152,7 @@ export default function TaskAttachments({ taskId, isEdit }: Props) {
 
   if (!isEdit || !taskId) {
     return (
-      <div className="space-y-1.5">
+      <div className="space-y-1.5 w-full max-w-full min-w-0">
         <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
           <Paperclip className="w-3.5 h-3.5" />
           Attachments
@@ -264,7 +264,7 @@ export default function TaskAttachments({ taskId, isEdit }: Props) {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 w-full max-w-full min-w-0">
       {/* Header with Title and Limit Badge */}
       <div className="flex items-center justify-between">
         <Label
@@ -297,7 +297,7 @@ export default function TaskAttachments({ taskId, isEdit }: Props) {
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
         className={cn(
-          "group relative flex flex-col items-center justify-center p-3.5 rounded-xl border border-dashed transition-all cursor-pointer select-none",
+          "group relative flex flex-col items-center justify-center p-3.5 rounded-xl border border-dashed transition-all cursor-pointer select-none w-full max-w-full min-w-0",
           isDragging
             ? "border-primary bg-primary/10 ring-2 ring-primary/30"
             : "border-border/80 hover:border-primary/50 hover:bg-muted/30 bg-muted/15",
@@ -330,7 +330,7 @@ export default function TaskAttachments({ taskId, isEdit }: Props) {
           <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> Loading attachments...
         </div>
       ) : attachments.length > 0 ? (
-        <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+        <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1 w-full max-w-full min-w-0">
           {attachments.map((att) => {
             const iconConfig = getFileIcon(att.mimeType, att.originalName);
             const Icon = iconConfig.icon;
@@ -340,7 +340,7 @@ export default function TaskAttachments({ taskId, isEdit }: Props) {
             return (
               <div
                 key={att.id}
-                className="group/item flex items-center justify-between gap-2.5 px-3 py-2 rounded-lg border border-border/70 bg-card hover:bg-muted/40 transition-colors"
+                className="group/item flex items-center justify-between gap-2.5 px-3 py-2 rounded-lg border border-border/70 bg-card hover:bg-muted/40 transition-colors w-full max-w-full min-w-0"
               >
                 {/* File Icon & Info */}
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">

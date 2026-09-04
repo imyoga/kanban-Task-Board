@@ -293,7 +293,7 @@ export default function RichTextEditor({
     editorProps: {
       attributes: {
         class:
-          "prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[160px] p-3 text-sm text-foreground break-words overflow-x-hidden",
+          "prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[160px] p-3 text-sm text-foreground [overflow-wrap:anywhere] [word-break:break-word] w-full max-w-full min-w-0 overflow-x-hidden",
       },
       handlePaste: (view, event) => {
         const items = event.clipboardData?.items;
@@ -411,7 +411,7 @@ export default function RichTextEditor({
   return (
     <div
       className={cn(
-        "rich-text-editor flex flex-col rounded-lg border border-input bg-card shadow-xs transition-all focus-within:border-primary/60 focus-within:ring-1 focus-within:ring-primary/40",
+        "rich-text-editor flex flex-col rounded-lg border border-input bg-card shadow-xs transition-all focus-within:border-primary/60 focus-within:ring-1 focus-within:ring-primary/40 w-full max-w-full min-w-0 overflow-hidden",
         className
       )}
     >
@@ -784,8 +784,8 @@ export default function RichTextEditor({
       </div>
 
       {/* Editor Content Area (Corner expandable, vertical scroll, no horizontal overflow) */}
-      <div className="relative min-h-[190px] max-h-[500px] overflow-y-auto overflow-x-hidden resize-y rounded-b-lg">
-        <EditorContent editor={editor} className="cursor-text min-h-full" />
+      <div className="relative min-h-[190px] max-h-[500px] overflow-y-auto overflow-x-hidden resize-y rounded-b-lg w-full max-w-full min-w-0 [overflow-wrap:anywhere] [word-break:break-word]">
+        <EditorContent editor={editor} className="cursor-text min-h-full w-full max-w-full min-w-0" />
 
         {isUploadingImage && (
           <div className="absolute inset-0 bg-background/70 backdrop-blur-2xs flex items-center justify-center gap-2 text-xs font-medium text-primary animate-in fade-in">
@@ -796,15 +796,15 @@ export default function RichTextEditor({
       </div>
 
       {/* Bottom status bar */}
-      <div className="flex items-center justify-between px-3 py-1 bg-muted/20 border-t border-border/40 text-[11px] text-muted-foreground rounded-b-lg select-none">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-1 px-3 py-1 bg-muted/20 border-t border-border/40 text-[11px] text-muted-foreground rounded-b-lg select-none min-w-0">
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
           <span>WYSIWYG Editor</span>
-          <span className="text-border">•</span>
-          <span>Paste screenshot (Ctrl+V)</span>
-          <span className="text-border">•</span>
-          <span>Click image for S / M / L</span>
+          <span className="text-border hidden sm:inline">•</span>
+          <span className="hidden sm:inline">Paste screenshot (Ctrl+V)</span>
+          <span className="text-border hidden md:inline">•</span>
+          <span className="hidden md:inline">Click image for S / M / L</span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0">
           <span className="text-[10px] uppercase font-bold tracking-wider px-1 py-0.2 rounded bg-muted text-muted-foreground border border-border/50">
             Expandable ↘
           </span>

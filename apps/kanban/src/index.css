@@ -149,3 +149,32 @@
     @apply font-sans antialiased bg-background text-foreground;
   }
 }
+
+/* Rich Text Editor & ProseMirror Word Wrapping */
+.ProseMirror {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
+  min-width: 0;
+}
+.ProseMirror p,
+.ProseMirror span,
+.ProseMirror a,
+.ProseMirror li,
+.ProseMirror h1,
+.ProseMirror h2,
+.ProseMirror h3,
+.ProseMirror blockquote {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.ProseMirror pre {
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.ProseMirror img {
+  max-width: 100%;
+  height: auto;
+}
