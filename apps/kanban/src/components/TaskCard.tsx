@@ -153,45 +153,62 @@ function TaskCard({ task, boardId, onEdit, onDelete }: Props) {
         </p>
       )}
 
-      <div className="mt-3 pt-2 border-t border-border/40 space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 flex-wrap">
+      <div className="mt-2.5 pt-2 border-t border-border/40 flex items-center justify-between gap-2 min-w-0">
+        {/* Left: Task Key & Priority */}
+        <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+          {task.taskKey && (
+            <a
+              href={`/boards/${boardId}/${task.taskKey}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+              className="group/key inline-flex items-center gap-1 text-[10px] font-mono font-bold text-muted-foreground/80 hover:text-foreground bg-muted/70 hover:bg-muted px-1.5 py-0.5 rounded uppercase tracking-wider transition-colors cursor-pointer border border-transparent hover:border-border/60 shrink-0"
+              title="Open task in new tab"
+            >
+              <span>{task.taskKey}</span>
+              <ExternalLink className="w-2.5 h-2.5 opacity-40 group-hover/key:opacity-100 transition-opacity" />
+            </a>
+          )}
+
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full border shrink-0",
+              priorityStyle.badge
+            )}
+          >
+            <span className={cn("w-1.5 h-1.5 rounded-full", priorityStyle.dot)} />
+            {priorityStyle.label}
+          </span>
+        </div>
+
+        {/* Right: Due Date & Assignee */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {dueStatus && (
             <span
               className={cn(
-                "inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border",
-                priorityStyle.badge
+                "inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0",
+                dueStatus.isOverdue
+                  ? "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/40 font-semibold"
+                  : dueStatus.isToday
+                    ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/40 font-semibold"
+                    : "text-muted-foreground"
               )}
             >
-              <span className={cn("w-1.5 h-1.5 rounded-full", priorityStyle.dot)} />
-              {priorityStyle.label}
+              {dueStatus.isOverdue ? (
+                <AlertCircle className="w-3 h-3 text-red-500" />
+              ) : (
+                <Calendar className="w-3 h-3" />
+              )}
+              <span>{dueStatus.label}</span>
             </span>
+          )}
 
-            {dueStatus && (
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded",
-                  dueStatus.isOverdue
-                    ? "bg-red-50 text-red-700 border border-red-200"
-                    : dueStatus.isToday
-                      ? "bg-amber-50 text-amber-700 border border-amber-200 font-semibold"
-                      : "text-muted-foreground"
-                )}
-              >
-                {dueStatus.isOverdue ? (
-                  <AlertCircle className="w-3 h-3 text-red-500" />
-                ) : (
-                  <Calendar className="w-3 h-3" />
-                )}
-                {dueStatus.label}
-              </span>
-            )}
-          </div>
-
-          {assignee ? (
+          {assignee && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <div
-                  className="w-6 h-6 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center text-[10px] font-bold tracking-tight shrink-0 shadow-2xs hover:scale-105 transition-transform"
+                  className="w-5 h-5 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center text-[9px] font-bold tracking-tight shrink-0 shadow-2xs hover:scale-105 transition-transform"
                   aria-label={userDisplayName(assignee)}
                 >
                   {userInitials(assignee)}
@@ -201,27 +218,8 @@ function TaskCard({ task, boardId, onEdit, onDelete }: Props) {
                 <span className="font-medium">{userDisplayName(assignee)}</span>
               </TooltipContent>
             </Tooltip>
-          ) : (
-            <div className="w-6 h-6" />
           )}
         </div>
-
-        {task.taskKey && (
-          <div className="flex items-center justify-between pt-0.5">
-            <a
-              href={`/boards/${boardId}/${task.taskKey}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              onPointerDown={(e) => e.stopPropagation()}
-              className="group/key inline-flex items-center gap-1 text-[10px] font-mono font-bold text-muted-foreground/75 hover:text-foreground bg-muted/60 hover:bg-muted px-1.5 py-0.5 rounded uppercase tracking-wider transition-colors cursor-pointer border border-transparent hover:border-border/60"
-              title="Open task in new tab"
-            >
-              <span>{task.taskKey}</span>
-              <ExternalLink className="w-2.5 h-2.5 opacity-40 group-hover/key:opacity-100 transition-opacity" />
-            </a>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -259,56 +257,54 @@ export function TaskCardPreview({ task }: { task: Task }) {
         </p>
       )}
 
-      <div className="mt-3 pt-2 border-t border-border/40 space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span
-              className={cn(
-                "inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border",
-                priorityStyle.badge
-              )}
-            >
-              <span className={cn("w-1.5 h-1.5 rounded-full", priorityStyle.dot)} />
-              {priorityStyle.label}
-            </span>
-
-            {dueStatus && (
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded",
-                  dueStatus.isOverdue
-                    ? "bg-red-50 text-red-700 border border-red-200"
-                    : dueStatus.isToday
-                      ? "bg-amber-50 text-amber-700 border border-amber-200 font-semibold"
-                      : "text-muted-foreground"
-                )}
-              >
-                {dueStatus.isOverdue ? (
-                  <AlertCircle className="w-3 h-3 text-red-500" />
-                ) : (
-                  <Calendar className="w-3 h-3" />
-                )}
-                {dueStatus.label}
-              </span>
-            )}
-          </div>
-
-          {assignee ? (
-            <div className="w-6 h-6 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center text-[10px] font-bold tracking-tight shrink-0 shadow-2xs">
-              {userInitials(assignee)}
-            </div>
-          ) : (
-            <div className="w-6 h-6" />
-          )}
-        </div>
-
-        {task.taskKey && (
-          <div className="flex items-center justify-between pt-0.5">
-            <span className="text-[10px] font-mono font-bold text-muted-foreground/75 bg-muted/60 px-1.5 py-0.5 rounded uppercase tracking-wider">
+      <div className="mt-2.5 pt-2 border-t border-border/40 flex items-center justify-between gap-2 min-w-0">
+        {/* Left: Task Key & Priority */}
+        <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+          {task.taskKey && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-muted-foreground/80 bg-muted/70 px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">
               {task.taskKey}
             </span>
-          </div>
-        )}
+          )}
+
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full border shrink-0",
+              priorityStyle.badge
+            )}
+          >
+            <span className={cn("w-1.5 h-1.5 rounded-full", priorityStyle.dot)} />
+            {priorityStyle.label}
+          </span>
+        </div>
+
+        {/* Right: Due Date & Assignee */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {dueStatus && (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0",
+                dueStatus.isOverdue
+                  ? "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/40 font-semibold"
+                  : dueStatus.isToday
+                    ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/40 font-semibold"
+                    : "text-muted-foreground"
+              )}
+            >
+              {dueStatus.isOverdue ? (
+                <AlertCircle className="w-3 h-3 text-red-500" />
+              ) : (
+                <Calendar className="w-3 h-3" />
+              )}
+              <span>{dueStatus.label}</span>
+            </span>
+          )}
+
+          {assignee && (
+            <div className="w-5 h-5 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center text-[9px] font-bold tracking-tight shrink-0 shadow-2xs">
+              {userInitials(assignee)}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
