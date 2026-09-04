@@ -57,6 +57,7 @@ import { useBoardEvents } from "@/hooks/useBoardEvents";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { userDisplayName, userInitials } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
@@ -568,27 +569,41 @@ export default function BoardPage() {
             )}
           </div>
 
-          {/* Priority filter pills */}
-          <div className="flex items-center gap-1 bg-muted/40 p-0.5 rounded-lg border border-border/60 text-xs">
-            {(["all", "high", "medium", "low"] as const).map((p) => {
-              const isActive = priorityFilter === p;
-              return (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => setPriorityFilter(p)}
-                  className={cn(
-                    "px-2.5 py-1 rounded-md capitalize font-medium transition-all text-xs",
-                    isActive
-                      ? "bg-background text-foreground shadow-2xs font-semibold"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {p}
-                </button>
-              );
-            })}
-          </div>
+          {/* Priority filter tabs */}
+          <Tabs
+            value={priorityFilter}
+            onValueChange={(v) => setPriorityFilter(v as "all" | "high" | "medium" | "low")}
+          >
+            <TabsList className="h-8 bg-muted/70 p-1 border border-border/60">
+              <TabsTrigger
+                value="all"
+                className="h-6 px-2.5 text-xs font-medium capitalize"
+              >
+                All
+              </TabsTrigger>
+              <TabsTrigger
+                value="high"
+                className="h-6 px-2.5 text-xs font-medium capitalize flex items-center gap-1.5"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                <span>High</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="medium"
+                className="h-6 px-2.5 text-xs font-medium capitalize flex items-center gap-1.5"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                <span>Medium</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="low"
+                className="h-6 px-2.5 text-xs font-medium capitalize flex items-center gap-1.5"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                <span>Low</span>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
 
           {/* Assignee filter if team members exist */}
           {boardTeam && boardTeam.members.length > 0 && (
