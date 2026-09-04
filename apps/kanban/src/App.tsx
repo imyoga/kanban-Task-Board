@@ -10,6 +10,7 @@ import LoginPage from "@/pages/LoginPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import TeamsPage from "@/pages/TeamsPage";
 import AccountPage from "@/pages/AccountPage";
+import TaskPage from "@/pages/TaskPage";
 import Layout from "@/components/Layout";
 import { useMe } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
@@ -50,7 +51,7 @@ function Router() {
           <Route path="/teams" component={TeamsPage} />
           <Route path="/account" component={AccountPage} />
           <Route path="/boards/:boardId/stats" component={StatsPage} />
-          <Route path="/boards/:boardId/:taskKey" component={BoardPage} />
+          <Route path="/boards/:boardId/:taskKey" component={TaskPage} />
           <Route path="/boards/:boardId" component={BoardPage} />
           <Route component={NotFound} />
         </Switch>

@@ -240,6 +240,7 @@ function KanbanColumn({ column, boardId, tasks, onAddTask, onEditTask, onDeleteT
               <TaskCard
                 key={task.id}
                 task={task}
+                boardId={boardId}
                 onEdit={onEditTask}
                 onDelete={onDeleteTask}
               />

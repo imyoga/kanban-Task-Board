@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Calendar, GripVertical, Trash2, Pencil, AlertCircle, Clock, CheckCircle2 } from "lucide-react";
+import { Calendar, GripVertical, Trash2, Pencil, AlertCircle, Clock, CheckCircle2, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Task } from "@workspace/api-client-react";
 import { taskDndId } from "@/lib/dnd";
@@ -11,6 +11,7 @@ import { stripHtmlPreview } from "@/components/RichTextEditor";
 
 interface Props {
   task: Task;
+  boardId?: number;
   onEdit: (task: Task) => void;
   onDelete: (id: number) => void;
 }
@@ -71,7 +72,7 @@ function getDueDateStatus(dueDateStr: string | null | undefined): {
   return { label: formatted, isOverdue: false, isToday: false, isSoon: false };
 }
 
-function TaskCard({ task, onEdit, onDelete }: Props) {
+function TaskCard({ task, boardId, onEdit, onDelete }: Props) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: taskDndId(task.id),
     data: { type: "task", task },
@@ -207,9 +208,18 @@ function TaskCard({ task, onEdit, onDelete }: Props) {
 
         {task.taskKey && (
           <div className="flex items-center justify-between pt-0.5">
-            <span className="text-[10px] font-mono font-bold text-muted-foreground/75 bg-muted/60 px-1.5 py-0.5 rounded uppercase tracking-wider">
-              {task.taskKey}
-            </span>
+            <a
+              href={`/boards/${boardId}/${task.taskKey}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+              className="group/key inline-flex items-center gap-1 text-[10px] font-mono font-bold text-muted-foreground/75 hover:text-foreground bg-muted/60 hover:bg-muted px-1.5 py-0.5 rounded uppercase tracking-wider transition-colors cursor-pointer border border-transparent hover:border-border/60"
+              title="Open task in new tab"
+            >
+              <span>{task.taskKey}</span>
+              <ExternalLink className="w-2.5 h-2.5 opacity-40 group-hover/key:opacity-100 transition-opacity" />
+            </a>
           </div>
         )}
       </div>

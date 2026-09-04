@@ -39,7 +39,7 @@ import { cn } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import TaskCommentsTab from "@/components/TaskCommentsTab";
 import TaskHistoryTab from "@/components/TaskHistoryTab";
-import { Calendar, User, Flag, Layout, X, MessageSquare, History } from "lucide-react";
+import { Calendar, User, Flag, Layout, X, MessageSquare, History, ExternalLink } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -252,11 +252,25 @@ export default function TaskDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl w-full max-w-[calc(100vw-2rem)] max-h-[92vh] overflow-y-auto overflow-x-hidden p-6">
-        <DialogHeader className="pb-2 border-b border-border/50">
+        <DialogHeader className="pb-2 border-b border-border/50 flex flex-row items-center justify-between gap-4">
           <DialogTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
             <Layout className="w-5 h-5 text-primary" />
             {isEdit ? "Edit Task" : "Create New Task"}
           </DialogTitle>
+          {isEdit && editTask?.taskKey && (
+            <div className="flex items-center gap-2 mr-6">
+              <a
+                href={`/boards/${boardId}/${editTask.taskKey}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group/key inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border border-border/60 transition-colors shadow-2xs select-none"
+                title="Open task in dedicated tab"
+              >
+                <span>{editTask.taskKey}</span>
+                <ExternalLink className="w-3 h-3 text-muted-foreground group-hover/key:text-foreground transition-colors" />
+              </a>
+            </div>
+          )}
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2 w-full max-w-full min-w-0">
