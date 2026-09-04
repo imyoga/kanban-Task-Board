@@ -26,5 +26,6 @@ export default defineConfig({
     "task_comments",
     "task_activities",
     "password_reset_tokens",
+    "notifications",
   ],
 });
