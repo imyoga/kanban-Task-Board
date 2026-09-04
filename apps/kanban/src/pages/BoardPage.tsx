@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -51,7 +51,7 @@ import {
   columnDndId,
   buildReorderedTasks,
 } from "@/lib/dnd";
-import { useBoardIdFromRoute } from "@/hooks/useBoardId";
+import { useBoardIdFromRoute, useTaskKeyFromRoute } from "@/hooks/useBoardId";
 import { useBoardEvents } from "@/hooks/useBoardEvents";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -62,6 +62,7 @@ import { cn } from "@/lib/utils";
 
 export default function BoardPage() {
   const boardId = useBoardIdFromRoute()!;
+  const routeTaskKey = useTaskKeyFromRoute();
   const [, setLocation] = useLocation();
   const { data: boards = [] } = useListBoards();
   const board = boards.find((b) => b.id === boardId);
@@ -86,6 +87,25 @@ export default function BoardPage() {
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [defaultColumnId, setDefaultColumnId] = useState<number | undefined>();
   const lastOverId = useRef<string | number | null>(null);
+
+  // Deep-link routing: open task modal if taskKey exists in URL
+  useEffect(() => {
+    if (!routeTaskKey || tasks.length === 0) return;
+    const normalized = routeTaskKey.trim().toUpperCase();
+    const found = tasks.find((t) => {
+      if (t.taskKey && t.taskKey.toUpperCase() === normalized) return true;
+      const parts = normalized.split("-");
+      const numStr = parts[parts.length - 1];
+      const num = Number(numStr);
+      if (!isNaN(num) && (t.taskNumber === num || t.id === num)) return true;
+      return false;
+    });
+
+    if (found && (!editTask || editTask.id !== found.id)) {
+      setEditTask(found);
+      setTaskDialogOpen(true);
+    }
+  }, [routeTaskKey, tasks, editTask]);
 
   // Real-time synchronization via Server-Sent Events (SSE)
   // Incoming remote updates are buffered while the user is actively dragging or has modals open
@@ -401,10 +421,28 @@ export default function BoardPage() {
     setTaskDialogOpen(true);
   }, []);
 
-  const handleEditTask = useCallback((task: Task) => {
-    setEditTask(task);
-    setTaskDialogOpen(true);
-  }, []);
+  const handleEditTask = useCallback(
+    (task: Task) => {
+      setEditTask(task);
+      setTaskDialogOpen(true);
+      const key = task.taskKey || `${board?.key || "BOARD"}-${task.taskNumber || task.id}`;
+      setLocation(`/boards/${boardId}/${key}`);
+    },
+    [board?.key, boardId, setLocation]
+  );
+
+  const handleTaskDialogOpenChange = useCallback(
+    (open: boolean) => {
+      setTaskDialogOpen(open);
+      if (!open) {
+        setEditTask(null);
+        if (routeTaskKey) {
+          setLocation(`/boards/${boardId}`);
+        }
+      }
+    },
+    [boardId, routeTaskKey, setLocation]
+  );
 
   const handleDeleteTask = useCallback(
     (id: number) => {
@@ -681,7 +719,7 @@ export default function BoardPage() {
 
       <TaskDialog
         open={taskDialogOpen}
-        onOpenChange={setTaskDialogOpen}
+        onOpenChange={handleTaskDialogOpenChange}
         boardId={boardId}
         columns={displayColumns}
         defaultColumnId={defaultColumnId}

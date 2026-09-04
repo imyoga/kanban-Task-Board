@@ -9,6 +9,7 @@
 export interface Board {
   id: number;
   name: string;
+  key: string;
   isOwner: boolean;
   isShared: boolean;
   createdAt: string;

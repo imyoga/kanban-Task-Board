@@ -749,11 +749,13 @@ components:
 
     Board:
       type: object
-      required: [id, name, isOwner, isShared, createdAt]
+      required: [id, name, key, isOwner, isShared, createdAt]
       properties:
         id:
           type: integer
         name:
+          type: string
+        key:
           type: string
         isOwner:
           type: boolean
@@ -768,14 +770,17 @@ components:
         name:
           type: string
           minLength: 1
+        key:
+          type: string
 
     BoardUpdate:
       type: object
-      required: [name]
       properties:
         name:
           type: string
           minLength: 1
+        key:
+          type: string
 
     BoardMember:
       type: object
@@ -861,6 +866,10 @@ components:
           oneOf:
             - $ref: "#/components/schemas/Assignee"
             - type: "null"
+        taskNumber:
+          type: integer
+        taskKey:
+          type: string
         createdAt:
           type: string
         updatedAt:

@@ -21,6 +21,8 @@ export interface Task {
   /** @nullable */
   assigneeId?: number | null;
   assignee?: Assignee | null;
+  taskNumber?: number;
+  taskKey?: string;
   createdAt: string;
   updatedAt?: string;
 }

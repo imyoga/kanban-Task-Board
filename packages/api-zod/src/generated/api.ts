@@ -21,6 +21,7 @@ export const HealthCheckResponse = zod.object({
 export const ListBoardsResponseItem = zod.object({
   id: zod.number(),
   name: zod.string(),
+  key: zod.string(),
   isOwner: zod.boolean(),
   isShared: zod.boolean(),
   createdAt: zod.string(),
@@ -33,6 +34,7 @@ export const ListBoardsResponse = zod.array(ListBoardsResponseItem);
 
 export const CreateBoardBody = zod.object({
   name: zod.string().min(1).optional(),
+  key: zod.string().optional(),
 });
 
 /**
@@ -43,12 +45,14 @@ export const UpdateBoardParams = zod.object({
 });
 
 export const UpdateBoardBody = zod.object({
-  name: zod.string().min(1),
+  name: zod.string().min(1).optional(),
+  key: zod.string().optional(),
 });
 
 export const UpdateBoardResponse = zod.object({
   id: zod.number(),
   name: zod.string(),
+  key: zod.string(),
   isOwner: zod.boolean(),
   isShared: zod.boolean(),
   createdAt: zod.string(),
@@ -306,6 +310,8 @@ export const ListTasksResponseItem = zod.object({
       zod.null(),
     ])
     .optional(),
+  taskNumber: zod.number().optional(),
+  taskKey: zod.string().optional(),
   createdAt: zod.string(),
   updatedAt: zod.string().optional(),
 });
@@ -380,6 +386,8 @@ export const GetTaskResponse = zod.object({
       zod.null(),
     ])
     .optional(),
+  taskNumber: zod.number().optional(),
+  taskKey: zod.string().optional(),
   createdAt: zod.string(),
   updatedAt: zod.string().optional(),
 });
@@ -420,6 +428,8 @@ export const UpdateTaskResponse = zod.object({
       zod.null(),
     ])
     .optional(),
+  taskNumber: zod.number().optional(),
+  taskKey: zod.string().optional(),
   createdAt: zod.string(),
   updatedAt: zod.string().optional(),
 });

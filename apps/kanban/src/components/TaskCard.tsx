@@ -109,9 +109,16 @@ function TaskCard({ task, onEdit, onDelete }: Props) {
             <GripVertical className="w-3.5 h-3.5" />
           </div>
 
-          <h4 className="text-sm font-semibold text-foreground leading-snug break-words flex-1">
-            {task.title}
-          </h4>
+          <div className="flex-1 min-w-0">
+            {task.taskKey && (
+              <span className="inline-block text-[10px] font-mono font-bold text-muted-foreground/80 bg-muted/70 px-1.5 py-0.5 rounded mr-1.5 uppercase tracking-wider">
+                {task.taskKey}
+              </span>
+            )}
+            <h4 className="inline text-sm font-semibold text-foreground leading-snug break-words">
+              {task.title}
+            </h4>
+          </div>
         </div>
 
         {/* Hover action buttons */}
@@ -223,9 +230,16 @@ export function TaskCardPreview({ task }: { task: Task }) {
           <div className="p-1 -ml-1 text-muted-foreground/40 rounded">
             <GripVertical className="w-3.5 h-3.5" />
           </div>
-          <h4 className="text-sm font-semibold text-foreground leading-snug break-words flex-1">
-            {task.title}
-          </h4>
+          <div className="flex-1 min-w-0">
+            {task.taskKey && (
+              <span className="inline-block text-[10px] font-mono font-bold text-muted-foreground/80 bg-muted/70 px-1.5 py-0.5 rounded mr-1.5 uppercase tracking-wider">
+                {task.taskKey}
+              </span>
+            )}
+            <h4 className="inline text-sm font-semibold text-foreground leading-snug break-words">
+              {task.title}
+            </h4>
+          </div>
         </div>
       </div>
 
@@ -283,6 +297,8 @@ export function TaskCardPreview({ task }: { task: Task }) {
 function areTasksEqual(prev: Task, next: Task) {
   return (
     prev.id === next.id &&
+    prev.taskKey === next.taskKey &&
+    prev.taskNumber === next.taskNumber &&
     prev.title === next.title &&
     prev.description === next.description &&
     prev.columnId === next.columnId &&

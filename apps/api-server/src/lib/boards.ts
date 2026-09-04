@@ -106,10 +106,28 @@ export async function normalizeDefaultColumnsForBoard(boardId: number) {
   });
 }
 
-export async function createDefaultBoardForUser(userId: number, name = "My Board") {
+export function generateBoardKey(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "BOARD";
+  if (words.length === 1) {
+    const letters = words[0].replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+    return letters.slice(0, 5) || "BOARD";
+  }
+  if (words.length === 2) {
+    const w1 = words[0].replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+    const w2 = words[1].replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+    const key = `${w1.slice(0, 3)}${w2.slice(0, 2)}`;
+    return key || "BOARD";
+  }
+  const acronym = words.map((w) => w.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().charAt(0)).join("");
+  return acronym.slice(0, 6) || "BOARD";
+}
+
+export async function createDefaultBoardForUser(userId: number, name = "My Board", customKey?: string) {
+  const key = customKey ? customKey.toUpperCase().replace(/[^A-Z0-9_-]/g, "").slice(0, 10) : generateBoardKey(name);
   const [board] = await db
     .insert(boardsTable)
-    .values({ ownerId: userId, name })
+    .values({ ownerId: userId, name, key })
     .returning();
 
   await seedDefaultColumnsForBoard(board.id, userId);

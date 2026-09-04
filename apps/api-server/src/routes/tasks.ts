@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db, tasksTable, columnsTable, usersTable, teamMembersTable } from "@workspace/db";
-import { eq, asc, and, inArray } from "drizzle-orm";
+import { db, tasksTable, columnsTable, usersTable, teamMembersTable, boardsTable } from "@workspace/db";
+import { eq, asc, and, inArray, sql } from "drizzle-orm";
 import {
   ListTasksQueryParams,
   CreateTaskBody,
@@ -26,7 +26,13 @@ function serializeAssignee(user: UserRow | null | undefined) {
   };
 }
 
-function serializeTask(t: typeof tasksTable.$inferSelect, assignee?: UserRow | null) {
+function serializeTask(
+  t: typeof tasksTable.$inferSelect,
+  assignee?: UserRow | null,
+  boardKey = "BOARD",
+) {
+  const taskNumber = t.taskNumber ?? t.id;
+  const taskKey = `${boardKey}-${taskNumber}`;
   return {
     id: t.id,
     title: t.title,
@@ -37,6 +43,8 @@ function serializeTask(t: typeof tasksTable.$inferSelect, assignee?: UserRow | n
     dueDate: t.dueDate,
     assigneeId: t.assigneeId,
     assignee: serializeAssignee(assignee),
+    taskNumber,
+    taskKey,
     createdAt: t.createdAt.toISOString(),
     updatedAt: t.updatedAt.toISOString(),
   };
@@ -144,8 +152,14 @@ router.get("/tasks", async (req, res) => {
     tasks.map((t) => t.assigneeId).filter((id): id is number => id != null),
   );
 
+  const [board] = await db
+    .select({ key: boardsTable.key })
+    .from(boardsTable)
+    .where(eq(boardsTable.id, boardId));
+  const boardKey = board?.key || "BOARD";
+
   res.json(
-    tasks.map((t) => serializeTask(t, t.assigneeId ? assigneeMap.get(t.assigneeId) : null)),
+    tasks.map((t) => serializeTask(t, t.assigneeId ? assigneeMap.get(t.assigneeId) : null, boardKey)),
   );
 });
 
@@ -193,6 +207,12 @@ router.post("/tasks", async (req, res) => {
     .where(and(eq(tasksTable.boardId, boardId), eq(tasksTable.columnId, columnId)));
   const pos = position ?? existing.length;
 
+  const [maxTask] = await db
+    .select({ maxNum: sql<number>`COALESCE(MAX(${tasksTable.taskNumber}), 0)` })
+    .from(tasksTable)
+    .where(eq(tasksTable.boardId, boardId));
+  const nextNumber = Number(maxTask?.maxNum ?? 0) + 1;
+
   const [task] = await db
     .insert(tasksTable)
     .values({
@@ -205,6 +225,7 @@ router.post("/tasks", async (req, res) => {
       position: pos,
       dueDate: dueDate ?? null,
       assigneeId: assigneeId ?? null,
+      taskNumber: nextNumber,
     })
     .returning();
 
@@ -214,6 +235,12 @@ router.post("/tasks", async (req, res) => {
     assignee = u ?? null;
   }
 
+  const [board] = await db
+    .select({ key: boardsTable.key })
+    .from(boardsTable)
+    .where(eq(boardsTable.id, boardId));
+  const boardKey = board?.key || "BOARD";
+
   broadcastBoardEvent(boardId, {
     type: "tasks:changed",
     actorId: userId,
@@ -222,7 +249,7 @@ router.post("/tasks", async (req, res) => {
     columnId: task.columnId,
   });
 
-  res.status(201).json(serializeTask(task, assignee));
+  res.status(201).json(serializeTask(task, assignee, boardKey));
 });
 
 router.get("/tasks/:id", async (req, res) => {
@@ -252,7 +279,13 @@ router.get("/tasks/:id", async (req, res) => {
     assignee = u ?? null;
   }
 
-  res.json(serializeTask(task, assignee));
+  const [board] = await db
+    .select({ key: boardsTable.key })
+    .from(boardsTable)
+    .where(eq(boardsTable.id, task.boardId));
+  const boardKey = board?.key || "BOARD";
+
+  res.json(serializeTask(task, assignee, boardKey));
 });
 
 router.patch("/tasks/:id", async (req, res) => {
@@ -352,7 +385,13 @@ router.patch("/tasks/:id", async (req, res) => {
     columnId: task.columnId,
   });
 
-  res.json(serializeTask(task, assignee));
+  const [board] = await db
+    .select({ key: boardsTable.key })
+    .from(boardsTable)
+    .where(eq(boardsTable.id, existing.boardId));
+  const boardKey = board?.key || "BOARD";
+
+  res.json(serializeTask(task, assignee, boardKey));
 });
 
 router.delete("/tasks/:id", async (req, res) => {

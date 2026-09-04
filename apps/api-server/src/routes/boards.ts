@@ -18,6 +18,7 @@ function serializeBoard(board: typeof boardsTable.$inferSelect, userId: number) 
   return {
     id: board.id,
     name: board.name,
+    key: board.key || "BOARD",
     isOwner,
     isShared: !isOwner,
     createdAt: board.createdAt.toISOString(),
@@ -59,8 +60,9 @@ router.post("/boards", async (req, res) => {
   const name = typeof req.body?.name === "string" && req.body.name.trim()
     ? req.body.name.trim()
     : "Untitled board";
+  const customKey = typeof req.body?.key === "string" ? req.body.key.trim() : undefined;
 
-  const board = await createDefaultBoardForUser(userId, name);
+  const board = await createDefaultBoardForUser(userId, name, customKey);
   await seedDefaultColumnsForBoard(board.id, userId);
   res.status(201).json(serializeBoard(board, userId));
 });
@@ -75,15 +77,25 @@ router.patch("/boards/:id", async (req, res) => {
     return;
   }
 
-  const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
-  if (!name) {
-    res.status(400).json({ error: "Name is required" });
+  const updates: Record<string, unknown> = {};
+  if (typeof req.body?.name === "string" && req.body.name.trim()) {
+    updates.name = req.body.name.trim();
+  }
+  if (typeof req.body?.key === "string" && req.body.key.trim()) {
+    const cleanKey = req.body.key.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, "").slice(0, 10);
+    if (cleanKey.length >= 2) {
+      updates.key = cleanKey;
+    }
+  }
+
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ error: "No valid fields to update" });
     return;
   }
 
   const [board] = await db
     .update(boardsTable)
-    .set({ name })
+    .set(updates)
     .where(eq(boardsTable.id, boardId))
     .returning();
 

@@ -41,6 +41,7 @@ interface Props {
 
 export default function BoardSettingsDialog({ board, open, onOpenChange, onDeleted }: Props) {
   const [name, setName] = useState(board.name);
+  const [key, setKey] = useState(board.key || "BOARD");
   const qc = useQueryClient();
   const { toast } = useToast();
   const updateBoard = useUpdateBoard();
@@ -57,20 +58,26 @@ export default function BoardSettingsDialog({ board, open, onOpenChange, onDelet
   useEffect(() => {
     if (open) {
       setName(board.name);
+      setKey(board.key || "BOARD");
     }
-  }, [open, board.name]);
+  }, [open, board.name, board.key]);
 
-  function handleRename(e: React.FormEvent) {
+  function handleSaveDetails(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || name.trim() === board.name) return;
+    const cleanName = name.trim();
+    const cleanKey = key.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, "");
+    if (!cleanName || cleanKey.length < 2) return;
+    if (cleanName === board.name && cleanKey === (board.key || "BOARD")) return;
+
     updateBoard.mutate(
-      { id: board.id, data: { name: name.trim() } },
+      { id: board.id, data: { name: cleanName, key: cleanKey } },
       {
         onSuccess: () => {
           qc.invalidateQueries({ queryKey: getListBoardsQueryKey() });
-          toast({ title: "Board renamed" });
+          qc.invalidateQueries({ queryKey: getGetBoardTeamQueryKey(board.id) });
+          toast({ title: "Board details updated" });
         },
-        onError: () => toast({ title: "Failed to rename board", variant: "destructive" }),
+        onError: () => toast({ title: "Failed to update board details", variant: "destructive" }),
       }
     );
   }
@@ -157,27 +164,57 @@ export default function BoardSettingsDialog({ board, open, onOpenChange, onDelet
         </DialogHeader>
 
         <div className="space-y-6 pt-2">
-          {/* Rename form */}
-          <form onSubmit={handleRename} className="space-y-3">
+          {/* Board Details form */}
+          <form onSubmit={handleSaveDetails} className="space-y-3.5">
             <div className="space-y-1.5">
               <Label htmlFor="board-rename" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Board Name
               </Label>
-              <div className="flex gap-2">
-                <Input
-                  id="board-rename"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="h-10 text-sm font-medium"
-                />
-                <Button
-                  type="submit"
-                  disabled={!name.trim() || name.trim() === board.name || updateBoard.isPending}
-                  className="shrink-0"
-                >
-                  {updateBoard.isPending ? "Saving..." : "Save"}
-                </Button>
+              <Input
+                id="board-rename"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="h-10 text-sm font-medium"
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="board-key" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Board Key / ID
+                </Label>
+                <span className="text-[11px] text-muted-foreground font-mono font-medium">
+                  Prefix: {key || "BOARD"}-1
+                </span>
               </div>
+              <Input
+                id="board-key"
+                value={key}
+                maxLength={10}
+                onChange={(e) => setKey(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ""))}
+                placeholder="PRDED"
+                className="h-10 text-sm font-mono uppercase font-bold tracking-wider"
+                required
+              />
+              <p className="text-[11px] text-muted-foreground leading-tight">
+                Used in task URLs like <span className="font-mono text-foreground font-semibold">/boards/{board.id}/{key || "BOARD"}-5945</span>.
+              </p>
+            </div>
+
+            <div className="flex justify-end pt-1">
+              <Button
+                type="submit"
+                disabled={
+                  !name.trim() ||
+                  key.trim().length < 2 ||
+                  (name.trim() === board.name && key.trim() === (board.key || "BOARD")) ||
+                  updateBoard.isPending
+                }
+                className="h-9 px-4 font-medium"
+              >
+                {updateBoard.isPending ? "Saving..." : "Save Details"}
+              </Button>
             </div>
           </form>
 

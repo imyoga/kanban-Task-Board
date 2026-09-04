@@ -42,8 +42,9 @@ function Router() {
           <Route path="/" component={HomeRedirect} />
           <Route path="/teams" component={TeamsPage} />
           <Route path="/account" component={AccountPage} />
-          <Route path="/boards/:boardId" component={BoardPage} />
           <Route path="/boards/:boardId/stats" component={StatsPage} />
+          <Route path="/boards/:boardId/:taskKey" component={BoardPage} />
+          <Route path="/boards/:boardId" component={BoardPage} />
           <Route component={NotFound} />
         </Switch>
       </Layout>

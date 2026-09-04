@@ -55,6 +55,20 @@ This guarantees $O(1)$ single-row updates during drag-and-drop operations.
 
 ---
 
+## Board Keys & Task URL Deep-Linking
+
+Boards and tasks support Jira/Linear-style keys and deep-linkable URLs:
+
+- **Board Keys**: Each board has a unique uppercase alphanumeric key (e.g. `PRDED` for "Product Development", `MYBRD` for "My Board"). Owners and managers can view and configure the Board Key in **Board Settings**.
+- **Task Numbering**: Each task is assigned a sequential `taskNumber` per board.
+- **Task Key Badges**: Task cards render a monospaced badge (e.g. `PRDED-5945`, `PRDED-7`) preceding the title.
+- **Deep-Linkable URLs**:
+  - Clicking a task updates the browser URL to `/boards/:boardId/:taskKey` (e.g. `/boards/1/PRDED-5945`).
+  - Closing the task modal restores the URL to `/boards/:boardId`.
+  - Sharing or refreshing any `/boards/:boardId/:taskKey` URL loads the board and immediately opens the task dialog for that task.
+
+---
+
 ## Default Columns Initialization
 
 When a new board is created, `seedDefaultColumnsForBoard()` initializes four default columns:

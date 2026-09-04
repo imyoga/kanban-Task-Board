@@ -12,6 +12,7 @@ export interface HealthStatus {
 export interface Board {
   id: number;
   name: string;
+  key: string;
   isOwner: boolean;
   isShared: boolean;
   createdAt: string;
@@ -20,11 +21,13 @@ export interface Board {
 export interface BoardInput {
   /** @minLength 1 */
   name?: string;
+  key?: string;
 }
 
 export interface BoardUpdate {
   /** @minLength 1 */
-  name: string;
+  name?: string;
+  key?: string;
 }
 
 export interface BoardMember {
@@ -89,6 +92,8 @@ export interface Task {
   /** @nullable */
   assigneeId?: number | null;
   assignee?: Assignee | null;
+  taskNumber?: number;
+  taskKey?: string;
   createdAt: string;
   updatedAt?: string;
 }

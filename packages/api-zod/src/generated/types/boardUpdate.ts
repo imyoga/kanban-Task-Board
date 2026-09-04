@@ -8,5 +8,6 @@
 
 export interface BoardUpdate {
   /** @minLength 1 */
-  name: string;
+  name?: string;
+  key?: string;
 }
