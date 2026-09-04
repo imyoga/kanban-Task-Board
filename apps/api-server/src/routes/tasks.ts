@@ -1,6 +1,14 @@
 import { Router } from "express";
-import { db, tasksTable, columnsTable, usersTable, teamMembersTable, boardsTable } from "@workspace/db";
-import { eq, asc, and, inArray, sql } from "drizzle-orm";
+import {
+  db,
+  tasksTable,
+  columnsTable,
+  usersTable,
+  teamMembersTable,
+  boardsTable,
+  taskActivitiesTable,
+} from "@workspace/db";
+import { eq, asc, desc, and, inArray, sql } from "drizzle-orm";
 import {
   ListTasksQueryParams,
   CreateTaskBody,
@@ -8,10 +16,12 @@ import {
   UpdateTaskParams,
   UpdateTaskBody,
   DeleteTaskParams,
+  ListTaskActivitiesParams,
 } from "@workspace/api-zod";
 import { getBoardAccess, getTeamForBoard } from "../lib/boardAccess";
 import { applyTaskMove } from "../lib/taskOrder";
 import { broadcastBoardEvent } from "../lib/boardEvents";
+import { recordTaskActivity } from "../lib/taskActivity";
 
 const router = Router();
 
@@ -23,6 +33,15 @@ function serializeAssignee(user: UserRow | null | undefined) {
     id: user.id,
     firstName: user.firstName,
     lastName: user.lastName,
+  };
+}
+
+function serializeUser(user: UserRow | null | undefined) {
+  return {
+    id: user?.id ?? 0,
+    email: user?.email ?? "",
+    firstName: user?.firstName ?? "",
+    lastName: user?.lastName ?? "",
   };
 }
 
@@ -249,6 +268,14 @@ router.post("/tasks", async (req, res) => {
     columnId: task.columnId,
   });
 
+  await recordTaskActivity({
+    taskId: task.id,
+    boardId,
+    userId,
+    action: "task_created",
+    message: "Created this task",
+  });
+
   res.status(201).json(serializeTask(task, assignee, boardKey));
 });
 
@@ -349,6 +376,100 @@ router.patch("/tasks/:id", async (req, res) => {
     }
   }
 
+  // Check differences to record activities
+  if (body.title !== undefined && body.title !== existing.title) {
+    await recordTaskActivity({
+      taskId: existing.id,
+      boardId: existing.boardId,
+      userId,
+      action: "task_updated",
+      field: "title",
+      oldValue: existing.title,
+      newValue: body.title,
+      message: `Changed title from "${existing.title}" to "${body.title}"`,
+    });
+  }
+
+  if (body.description !== undefined && (body.description ?? "") !== (existing.description ?? "")) {
+    await recordTaskActivity({
+      taskId: existing.id,
+      boardId: existing.boardId,
+      userId,
+      action: "task_updated",
+      field: "description",
+      message: "Updated task description",
+    });
+  }
+
+  if (body.priority !== undefined && body.priority !== existing.priority) {
+    await recordTaskActivity({
+      taskId: existing.id,
+      boardId: existing.boardId,
+      userId,
+      action: "task_updated",
+      field: "priority",
+      oldValue: existing.priority,
+      newValue: body.priority,
+      message: `Changed priority from ${existing.priority} to ${body.priority}`,
+    });
+  }
+
+  if (body.dueDate !== undefined && (body.dueDate ?? null) !== (existing.dueDate ?? null)) {
+    await recordTaskActivity({
+      taskId: existing.id,
+      boardId: existing.boardId,
+      userId,
+      action: "task_updated",
+      field: "dueDate",
+      oldValue: existing.dueDate ?? null,
+      newValue: body.dueDate ?? null,
+      message: body.dueDate ? `Set due date to ${body.dueDate}` : "Removed due date",
+    });
+  }
+
+  if (body.assigneeId !== undefined && (body.assigneeId ?? null) !== (existing.assigneeId ?? null)) {
+    let oldName: string | null = null;
+    let newName: string | null = null;
+
+    if (existing.assigneeId) {
+      const [oldU] = await db.select().from(usersTable).where(eq(usersTable.id, existing.assigneeId));
+      if (oldU) oldName = `${oldU.firstName} ${oldU.lastName}`.trim() || oldU.email;
+    }
+    if (body.assigneeId) {
+      const [newU] = await db.select().from(usersTable).where(eq(usersTable.id, body.assigneeId));
+      if (newU) newName = `${newU.firstName} ${newU.lastName}`.trim() || newU.email;
+    }
+
+    await recordTaskActivity({
+      taskId: existing.id,
+      boardId: existing.boardId,
+      userId,
+      action: "task_updated",
+      field: "assignee",
+      oldValue: oldName,
+      newValue: newName,
+      message: newName ? `Assigned task to ${newName}` : "Unassigned this task",
+    });
+  }
+
+  if (body.columnId !== undefined && body.columnId !== existing.columnId) {
+    const [oldCol] = await db.select().from(columnsTable).where(eq(columnsTable.id, existing.columnId));
+    const [newCol] = await db.select().from(columnsTable).where(eq(columnsTable.id, body.columnId));
+    const oldTitle = oldCol?.title || `Column ${existing.columnId}`;
+    const newTitle = newCol?.title || `Column ${body.columnId}`;
+
+    await recordTaskActivity({
+      taskId: existing.id,
+      boardId: existing.boardId,
+      userId,
+      action: "task_moved",
+      field: "column",
+      oldValue: oldTitle,
+      newValue: newTitle,
+      message: `Moved from "${oldTitle}" to "${newTitle}"`,
+    });
+  }
+
   // Apply metadata updates first (title, description, priority, dueDate, assigneeId)
   if (Object.keys(updates).length > 1) { // more than just updatedAt
     await db
@@ -429,6 +550,59 @@ router.delete("/tasks/:id", async (req, res) => {
   });
 
   res.status(204).send();
+});
+
+// GET /tasks/:id/activities
+router.get("/tasks/:id/activities", async (req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  const parsed = ListTaskActivitiesParams.safeParse({ id: Number(req.params.id) });
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid id" });
+    return;
+  }
+
+  const userId = req.session.userId!;
+  const taskId = parsed.data.id;
+
+  const [task] = await db.select().from(tasksTable).where(eq(tasksTable.id, taskId));
+  if (!task) {
+    res.status(404).json({ error: "Task not found" });
+    return;
+  }
+
+  const access = await getBoardAccess(task.boardId, userId);
+  if (!access) {
+    res.status(404).json({ error: "Task not found" });
+    return;
+  }
+
+  const activities = await db
+    .select()
+    .from(taskActivitiesTable)
+    .where(eq(taskActivitiesTable.taskId, taskId))
+    .orderBy(desc(taskActivitiesTable.createdAt));
+
+  const userIds = [...new Set(activities.map((a) => a.userId))];
+  const users = userIds.length > 0
+    ? await db.select().from(usersTable).where(inArray(usersTable.id, userIds))
+    : [];
+  const userMap = new Map(users.map((u) => [u.id, u]));
+
+  res.json(
+    activities.map((a) => ({
+      id: a.id,
+      taskId: a.taskId,
+      boardId: a.boardId,
+      userId: a.userId,
+      user: serializeUser(userMap.get(a.userId)),
+      action: a.action,
+      field: a.field,
+      oldValue: a.oldValue,
+      newValue: a.newValue,
+      message: a.message,
+      createdAt: a.createdAt.toISOString(),
+    }))
+  );
 });
 
 export default router;

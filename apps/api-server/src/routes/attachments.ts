@@ -6,6 +6,7 @@ import multer from "multer";
 import { db, taskAttachmentsTable, tasksTable, usersTable } from "@workspace/db";
 import { eq, desc, inArray } from "drizzle-orm";
 import { getBoardAccess } from "../lib/boardAccess";
+import { recordTaskActivity } from "../lib/taskActivity";
 
 const router = Router();
 
@@ -204,6 +205,16 @@ router.post(
       .where(eq(usersTable.id, userId));
     const uploaderName = user ? [user.firstName, user.lastName].filter(Boolean).join(" ").trim() : "User";
 
+    await recordTaskActivity({
+      taskId,
+      boardId: task.boardId,
+      userId,
+      action: "attachment_added",
+      field: "attachment",
+      newValue: attachment.originalName,
+      message: `Attached file "${attachment.originalName}"`,
+    });
+
     res.status(201).json({
       id: attachment.id,
       taskId: attachment.taskId,
@@ -256,6 +267,16 @@ router.delete("/tasks/:id/attachments/:attachmentId", async (req: Request, res: 
   // Delete from disk
   const filePath = path.join(getUploadDir(), attachment.filename);
   fs.promises.unlink(filePath).catch(() => {});
+
+  await recordTaskActivity({
+    taskId,
+    boardId: task.boardId,
+    userId,
+    action: "attachment_deleted",
+    field: "attachment",
+    oldValue: attachment.originalName,
+    message: `Removed attachment "${attachment.originalName}"`,
+  });
 
   res.status(204).send();
 });

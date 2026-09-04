@@ -7,4 +7,7 @@ export * from "./teams";
 export * from "./teamMembers";
 export * from "./teamInvites";
 export * from "./taskAttachments";
+export * from "./taskComments";
+export * from "./taskActivities";
 export * from "./passwordResetTokens";
+

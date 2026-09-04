@@ -737,6 +737,139 @@ paths:
         "404":
           description: Attachment not found
 
+  /tasks/{id}/comments:
+    get:
+      operationId: listTaskComments
+      tags: [tasks]
+      summary: List all comments for a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of comments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TaskComment"
+        "404":
+          description: Task or board not found
+    post:
+      operationId: createTaskComment
+      tags: [tasks]
+      summary: Add a comment to a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskCommentInput"
+      responses:
+        "201":
+          description: Comment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskComment"
+        "400":
+          description: Bad request
+        "403":
+          description: Forbidden
+        "404":
+          description: Task or board not found
+
+  /tasks/{id}/comments/{commentId}:
+    patch:
+      operationId: updateTaskComment
+      tags: [tasks]
+      summary: Update a comment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: commentId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskCommentInput"
+      responses:
+        "200":
+          description: Updated comment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskComment"
+        "400":
+          description: Bad request
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteTaskComment
+      tags: [tasks]
+      summary: Delete a comment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: commentId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Comment deleted
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /tasks/{id}/activities:
+    get:
+      operationId: listTaskActivities
+      tags: [tasks]
+      summary: List all activity history for a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of activities
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TaskActivity"
+        "404":
+          description: Task or board not found
+
 components:
   schemas:
     HealthStatus:
@@ -1104,3 +1237,76 @@ components:
           type: integer
         createdAt:
           type: string
+
+    TaskCommentAuthor:
+      type: object
+      required: [id, email, firstName, lastName]
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+
+    TaskComment:
+      type: object
+      required: [id, taskId, boardId, userId, content, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        taskId:
+          type: integer
+        boardId:
+          type: integer
+        userId:
+          type: integer
+        author:
+          $ref: "#/components/schemas/TaskCommentAuthor"
+        content:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    TaskCommentInput:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          minLength: 1
+
+    TaskActivity:
+      type: object
+      required: [id, taskId, boardId, userId, action, message, createdAt]
+      properties:
+        id:
+          type: integer
+        taskId:
+          type: integer
+        boardId:
+          type: integer
+        userId:
+          type: integer
+        user:
+          $ref: "#/components/schemas/TaskCommentAuthor"
+        action:
+          type: string
+        field:
+          type: string
+          nullable: true
+        oldValue:
+          type: string
+          nullable: true
+        newValue:
+          type: string
+          nullable: true
+        message:
+          type: string
+        createdAt:
+          type: string
+

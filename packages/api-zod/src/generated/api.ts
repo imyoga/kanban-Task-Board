@@ -497,3 +497,109 @@ export const DownloadTaskAttachmentParams = zod.object({
   id: zod.coerce.number(),
   attachmentId: zod.coerce.number(),
 });
+
+/**
+ * @summary List all comments for a task
+ */
+export const ListTaskCommentsParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListTaskCommentsResponseItem = zod.object({
+  id: zod.number(),
+  taskId: zod.number(),
+  boardId: zod.number(),
+  userId: zod.number(),
+  author: zod
+    .object({
+      id: zod.number(),
+      email: zod.string(),
+      firstName: zod.string(),
+      lastName: zod.string(),
+    })
+    .optional(),
+  content: zod.string(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+export const ListTaskCommentsResponse = zod.array(ListTaskCommentsResponseItem);
+
+/**
+ * @summary Add a comment to a task
+ */
+export const CreateTaskCommentParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const CreateTaskCommentBody = zod.object({
+  content: zod.string().min(1),
+});
+
+/**
+ * @summary Update a comment
+ */
+export const UpdateTaskCommentParams = zod.object({
+  id: zod.coerce.number(),
+  commentId: zod.coerce.number(),
+});
+
+export const UpdateTaskCommentBody = zod.object({
+  content: zod.string().min(1),
+});
+
+export const UpdateTaskCommentResponse = zod.object({
+  id: zod.number(),
+  taskId: zod.number(),
+  boardId: zod.number(),
+  userId: zod.number(),
+  author: zod
+    .object({
+      id: zod.number(),
+      email: zod.string(),
+      firstName: zod.string(),
+      lastName: zod.string(),
+    })
+    .optional(),
+  content: zod.string(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+
+/**
+ * @summary Delete a comment
+ */
+export const DeleteTaskCommentParams = zod.object({
+  id: zod.coerce.number(),
+  commentId: zod.coerce.number(),
+});
+
+/**
+ * @summary List all activity history for a task
+ */
+export const ListTaskActivitiesParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListTaskActivitiesResponseItem = zod.object({
+  id: zod.number(),
+  taskId: zod.number(),
+  boardId: zod.number(),
+  userId: zod.number(),
+  user: zod
+    .object({
+      id: zod.number(),
+      email: zod.string(),
+      firstName: zod.string(),
+      lastName: zod.string(),
+    })
+    .optional(),
+  action: zod.string(),
+  field: zod.string().nullish(),
+  oldValue: zod.string().nullish(),
+  newValue: zod.string().nullish(),
+  message: zod.string(),
+  createdAt: zod.string(),
+});
+export const ListTaskActivitiesResponse = zod.array(
+  ListTaskActivitiesResponseItem,
+);

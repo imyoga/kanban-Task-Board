@@ -7,6 +7,8 @@ import {
   getListTasksQueryKey,
   getGetTaskStatsQueryKey,
   getGetBoardTeamQueryKey,
+  getListTaskCommentsQueryKey,
+  getListTaskActivitiesQueryKey,
 } from "@workspace/api-client-react";
 import type { Task, Column } from "@workspace/api-client-react";
 import {
@@ -31,7 +33,10 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { userDisplayName, userInitials } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
-import { Calendar, User, Flag, Layout, X } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import TaskCommentsTab from "@/components/TaskCommentsTab";
+import TaskHistoryTab from "@/components/TaskHistoryTab";
+import { Calendar, User, Flag, Layout, X, MessageSquare, History } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -80,6 +85,7 @@ export default function TaskDialog({
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
   const [dueDate, setDueDate] = useState("");
   const [assigneeId, setAssigneeId] = useState<string>("none");
+  const [activeBottomTab, setActiveBottomTab] = useState<string>("comments");
 
   const { data: boardTeam } = useGetBoardTeam(boardId, {
     query: { enabled: open, queryKey: getGetBoardTeamQueryKey(boardId) },
@@ -118,6 +124,10 @@ export default function TaskDialog({
       setPriority((editTask.priority as "low" | "medium" | "high") || "medium");
       setDueDate(editTask.dueDate ?? "");
       setAssigneeId(editTask.assigneeId ? String(editTask.assigneeId) : "none");
+      setActiveBottomTab("comments");
+      // Refetch comments and history for fresh data
+      qc.invalidateQueries({ queryKey: getListTaskCommentsQueryKey(editTask.id) });
+      qc.invalidateQueries({ queryKey: getListTaskActivitiesQueryKey(editTask.id) });
     } else {
       setTitle("");
       setDescription("");
@@ -125,6 +135,7 @@ export default function TaskDialog({
       setPriority("medium");
       setDueDate("");
       setAssigneeId("none");
+      setActiveBottomTab("comments");
     }
   }, [open, editTask?.id]);
 
@@ -138,6 +149,16 @@ export default function TaskDialog({
   function invalidate() {
     qc.invalidateQueries({ queryKey: getListTasksQueryKey({ boardId }) });
     qc.invalidateQueries({ queryKey: getGetTaskStatsQueryKey({ boardId }) });
+  }
+
+  function handleBottomTabChange(val: string) {
+    setActiveBottomTab(val);
+    if (!editTask) return;
+    if (val === "comments") {
+      qc.invalidateQueries({ queryKey: getListTaskCommentsQueryKey(editTask.id) });
+    } else if (val === "history") {
+      qc.invalidateQueries({ queryKey: getListTaskActivitiesQueryKey(editTask.id) });
+    }
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -357,6 +378,34 @@ export default function TaskDialog({
               </div>
             </div>
           </div>
+
+          {/* Comments & History Tabs at bottom of Task Modal */}
+          {isEdit && editTask && (
+            <div className="pt-4 border-t border-border/60 w-full max-w-full min-w-0">
+              <Tabs value={activeBottomTab} onValueChange={handleBottomTabChange} className="w-full">
+                <div className="flex items-center justify-between pb-2 border-b border-border/40">
+                  <TabsList className="grid grid-cols-2 w-full max-w-[260px] h-8">
+                    <TabsTrigger value="comments" className="flex items-center gap-1.5 text-xs py-1">
+                      <MessageSquare className="w-3.5 h-3.5 text-primary" />
+                      <span>Comments</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="history" className="flex items-center gap-1.5 text-xs py-1">
+                      <History className="w-3.5 h-3.5 text-primary" />
+                      <span>History</span>
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
+
+                <TabsContent value="comments" className="mt-3 focus-visible:outline-none">
+                  <TaskCommentsTab taskId={editTask.id} boardId={boardId} activeTab={activeBottomTab} />
+                </TabsContent>
+
+                <TabsContent value="history" className="mt-3 focus-visible:outline-none">
+                  <TaskHistoryTab taskId={editTask.id} boardId={boardId} activeTab={activeBottomTab} />
+                </TabsContent>
+              </Tabs>
+            </div>
+          )}
 
           <DialogFooter className="pt-3 border-t border-border/50 gap-2 sm:gap-0">
             <Button

@@ -241,6 +241,43 @@ export interface TaskAttachment {
   createdAt: string;
 }
 
+export interface TaskCommentAuthor {
+  id: number;
+  email: string;
+  firstName: string;
+  lastName: string;
+}
+
+export interface TaskComment {
+  id: number;
+  taskId: number;
+  boardId: number;
+  userId: number;
+  author?: TaskCommentAuthor;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TaskCommentInput {
+  /** @minLength 1 */
+  content: string;
+}
+
+export interface TaskActivity {
+  id: number;
+  taskId: number;
+  boardId: number;
+  userId: number;
+  user?: TaskCommentAuthor;
+  action: string;
+  field?: string | null;
+  oldValue?: string | null;
+  newValue?: string | null;
+  message: string;
+  createdAt: string;
+}
+
 export type ListColumnsParams = {
   boardId: number;
 };

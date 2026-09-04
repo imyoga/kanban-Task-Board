@@ -32,7 +32,10 @@ import type {
   ListColumnsParams,
   ListTasksParams,
   Task,
+  TaskActivity,
   TaskAttachment,
+  TaskComment,
+  TaskCommentInput,
   TaskInput,
   TaskStats,
   TaskUpdate,
@@ -2868,6 +2871,440 @@ export function useDownloadTaskAttachment<
     attachmentId,
     options,
   );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List all comments for a task
+ */
+export const getListTaskCommentsUrl = (id: number) => {
+  return `/api/tasks/${id}/comments`;
+};
+
+export const listTaskComments = async (
+  id: number,
+  options?: RequestInit,
+): Promise<TaskComment[]> => {
+  return customFetch<TaskComment[]>(getListTaskCommentsUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListTaskCommentsQueryKey = (id: number) => {
+  return [`/api/tasks/${id}/comments`] as const;
+};
+
+export const getListTaskCommentsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listTaskComments>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listTaskComments>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListTaskCommentsQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listTaskComments>>
+  > = ({ signal }) => listTaskComments(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listTaskComments>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListTaskCommentsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listTaskComments>>
+>;
+export type ListTaskCommentsQueryError = ErrorType<void>;
+
+/**
+ * @summary List all comments for a task
+ */
+
+export function useListTaskComments<
+  TData = Awaited<ReturnType<typeof listTaskComments>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listTaskComments>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListTaskCommentsQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Add a comment to a task
+ */
+export const getCreateTaskCommentUrl = (id: number) => {
+  return `/api/tasks/${id}/comments`;
+};
+
+export const createTaskComment = async (
+  id: number,
+  taskCommentInput: TaskCommentInput,
+  options?: RequestInit,
+): Promise<TaskComment> => {
+  return customFetch<TaskComment>(getCreateTaskCommentUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(taskCommentInput),
+  });
+};
+
+export const getCreateTaskCommentMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createTaskComment>>,
+    TError,
+    { id: number; data: BodyType<TaskCommentInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createTaskComment>>,
+  TError,
+  { id: number; data: BodyType<TaskCommentInput> },
+  TContext
+> => {
+  const mutationKey = ["createTaskComment"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createTaskComment>>,
+    { id: number; data: BodyType<TaskCommentInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return createTaskComment(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateTaskCommentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createTaskComment>>
+>;
+export type CreateTaskCommentMutationBody = BodyType<TaskCommentInput>;
+export type CreateTaskCommentMutationError = ErrorType<void>;
+
+/**
+ * @summary Add a comment to a task
+ */
+export const useCreateTaskComment = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createTaskComment>>,
+    TError,
+    { id: number; data: BodyType<TaskCommentInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createTaskComment>>,
+  TError,
+  { id: number; data: BodyType<TaskCommentInput> },
+  TContext
+> => {
+  return useMutation(getCreateTaskCommentMutationOptions(options));
+};
+
+/**
+ * @summary Update a comment
+ */
+export const getUpdateTaskCommentUrl = (id: number, commentId: number) => {
+  return `/api/tasks/${id}/comments/${commentId}`;
+};
+
+export const updateTaskComment = async (
+  id: number,
+  commentId: number,
+  taskCommentInput: TaskCommentInput,
+  options?: RequestInit,
+): Promise<TaskComment> => {
+  return customFetch<TaskComment>(getUpdateTaskCommentUrl(id, commentId), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(taskCommentInput),
+  });
+};
+
+export const getUpdateTaskCommentMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateTaskComment>>,
+    TError,
+    { id: number; commentId: number; data: BodyType<TaskCommentInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateTaskComment>>,
+  TError,
+  { id: number; commentId: number; data: BodyType<TaskCommentInput> },
+  TContext
+> => {
+  const mutationKey = ["updateTaskComment"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateTaskComment>>,
+    { id: number; commentId: number; data: BodyType<TaskCommentInput> }
+  > = (props) => {
+    const { id, commentId, data } = props ?? {};
+
+    return updateTaskComment(id, commentId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateTaskCommentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateTaskComment>>
+>;
+export type UpdateTaskCommentMutationBody = BodyType<TaskCommentInput>;
+export type UpdateTaskCommentMutationError = ErrorType<void>;
+
+/**
+ * @summary Update a comment
+ */
+export const useUpdateTaskComment = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateTaskComment>>,
+    TError,
+    { id: number; commentId: number; data: BodyType<TaskCommentInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateTaskComment>>,
+  TError,
+  { id: number; commentId: number; data: BodyType<TaskCommentInput> },
+  TContext
+> => {
+  return useMutation(getUpdateTaskCommentMutationOptions(options));
+};
+
+/**
+ * @summary Delete a comment
+ */
+export const getDeleteTaskCommentUrl = (id: number, commentId: number) => {
+  return `/api/tasks/${id}/comments/${commentId}`;
+};
+
+export const deleteTaskComment = async (
+  id: number,
+  commentId: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteTaskCommentUrl(id, commentId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteTaskCommentMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteTaskComment>>,
+    TError,
+    { id: number; commentId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteTaskComment>>,
+  TError,
+  { id: number; commentId: number },
+  TContext
+> => {
+  const mutationKey = ["deleteTaskComment"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteTaskComment>>,
+    { id: number; commentId: number }
+  > = (props) => {
+    const { id, commentId } = props ?? {};
+
+    return deleteTaskComment(id, commentId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteTaskCommentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteTaskComment>>
+>;
+
+export type DeleteTaskCommentMutationError = ErrorType<void>;
+
+/**
+ * @summary Delete a comment
+ */
+export const useDeleteTaskComment = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteTaskComment>>,
+    TError,
+    { id: number; commentId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteTaskComment>>,
+  TError,
+  { id: number; commentId: number },
+  TContext
+> => {
+  return useMutation(getDeleteTaskCommentMutationOptions(options));
+};
+
+/**
+ * @summary List all activity history for a task
+ */
+export const getListTaskActivitiesUrl = (id: number) => {
+  return `/api/tasks/${id}/activities`;
+};
+
+export const listTaskActivities = async (
+  id: number,
+  options?: RequestInit,
+): Promise<TaskActivity[]> => {
+  return customFetch<TaskActivity[]>(getListTaskActivitiesUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListTaskActivitiesQueryKey = (id: number) => {
+  return [`/api/tasks/${id}/activities`] as const;
+};
+
+export const getListTaskActivitiesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listTaskActivities>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listTaskActivities>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListTaskActivitiesQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listTaskActivities>>
+  > = ({ signal }) => listTaskActivities(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listTaskActivities>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListTaskActivitiesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listTaskActivities>>
+>;
+export type ListTaskActivitiesQueryError = ErrorType<void>;
+
+/**
+ * @summary List all activity history for a task
+ */
+
+export function useListTaskActivities<
+  TData = Awaited<ReturnType<typeof listTaskActivities>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listTaskActivities>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListTaskActivitiesQueryOptions(id, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

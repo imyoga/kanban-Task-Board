@@ -23,5 +23,8 @@ export default defineConfig({
     "team_members",
     "team_invites",
     "task_attachments",
+    "task_comments",
+    "task_activities",
+    "password_reset_tokens",
   ],
 });
