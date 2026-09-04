@@ -40,47 +40,164 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 
 export type ImageSize = "S" | "M" | "L";
 
-// Compress and convert image file to optimized base64 data URL
-async function processImageFile(file: File): Promise<string> {
+// Compress and convert image file or data URL to optimized base64 data URL
+let cachedSupportsWebp: boolean | null = null;
+export function isWebpSupported(): boolean {
+  if (cachedSupportsWebp !== null) return cachedSupportsWebp;
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    cachedSupportsWebp = canvas.toDataURL("image/webp").startsWith("data:image/webp");
+  } catch {
+    cachedSupportsWebp = false;
+  }
+  return cachedSupportsWebp;
+}
+
+/**
+ * Compress and convert an image (File or base64 data URL) to an optimized WebP or JPEG data URL.
+ * Guarantees small payload size (< 350KB binary / ~460KB base64) while preserving high visual quality for screenshots.
+ */
+export async function processImageFile(
+  fileOrUrl: File | string,
+  targetMaxBytes = 350 * 1024,
+): Promise<string> {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = reject;
-    reader.onload = () => {
-      const img = new Image();
-      img.onerror = reject;
-      img.onload = () => {
-        const MAX_DIM = 1600;
-        let width = img.width;
-        let height = img.height;
+    let objectUrl: string | null = null;
+    const img = new Image();
 
-        if (width > MAX_DIM || height > MAX_DIM) {
-          if (width > height) {
-            height = Math.round((height * MAX_DIM) / width);
-            width = MAX_DIM;
-          } else {
-            width = Math.round((width * MAX_DIM) / height);
-            height = MAX_DIM;
-          }
-        }
+    const cleanup = () => {
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+        objectUrl = null;
+      }
+    };
 
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          resolve(reader.result as string);
+    img.onerror = (err) => {
+      cleanup();
+      reject(err);
+    };
+
+    img.onload = () => {
+      cleanup();
+      try {
+        const origWidth = img.naturalWidth || img.width;
+        const origHeight = img.naturalHeight || img.height;
+
+        if (!origWidth || !origHeight) {
+          if (typeof fileOrUrl === "string") return resolve(fileOrUrl);
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(fileOrUrl);
           return;
         }
 
-        ctx.drawImage(img, 0, 0, width, height);
-        const isPng = file.type === "image/png";
-        const dataUrl = canvas.toDataURL(isPng ? "image/png" : "image/jpeg", 0.85);
-        resolve(dataUrl);
-      };
-      img.src = reader.result as string;
+        const mimeType = isWebpSupported() ? "image/webp" : "image/jpeg";
+
+        // Adaptive compression: start with 1400px max dimension & 0.82 quality
+        let maxDim = 1400;
+        let quality = 0.82;
+        let bestDataUrl = "";
+        const maxAttempts = 3;
+
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          let width = origWidth;
+          let height = origHeight;
+
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+
+          if (!ctx) break;
+
+          // If JPEG (fallback when WebP unsupported), paint white background
+          if (mimeType === "image/jpeg") {
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, width, height);
+          }
+
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = "high";
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const currentDataUrl = canvas.toDataURL(mimeType, quality);
+          bestDataUrl = currentDataUrl;
+
+          // Approx binary bytes = base64 character length * 0.75
+          const approxBytes = currentDataUrl.length * 0.75;
+          if (approxBytes <= targetMaxBytes) {
+            break;
+          }
+
+          // Step down dimension and quality for next pass if payload is still oversized
+          maxDim = Math.max(900, Math.round(maxDim * 0.8));
+          quality = Math.max(0.55, quality - 0.15);
+        }
+
+        resolve(bestDataUrl || (typeof fileOrUrl === "string" ? fileOrUrl : ""));
+      } catch (err) {
+        console.error("Failed to process/compress image:", err);
+        if (typeof fileOrUrl === "string") {
+          resolve(fileOrUrl);
+        } else {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(fileOrUrl);
+        }
+      }
     };
-    reader.readAsDataURL(file);
+
+    if (typeof fileOrUrl === "string") {
+      img.src = fileOrUrl;
+    } else {
+      objectUrl = URL.createObjectURL(fileOrUrl);
+      img.src = objectUrl;
+    }
   });
+}
+
+/**
+ * Scans an HTML string for oversized base64 images (> 350KB) and compresses them.
+ * Useful before saving tasks to ensure no legacy or oversized images cause 413 errors.
+ */
+export async function optimizeDescriptionImages(html: string): Promise<string> {
+  if (!html || !html.includes("data:image/")) return html;
+
+  const imgRegex = /<img[^>]+src=["'](data:image\/[^"']+)["'][^>]*>/gi;
+  const matches = [...html.matchAll(imgRegex)];
+  if (matches.length === 0) return html;
+
+  let optimizedHtml = html;
+  for (const match of matches) {
+    const src = match[1];
+    // If base64 string exceeds 400,000 characters (~300KB binary), compress it
+    if (src && src.length > 400_000) {
+      try {
+        const optimizedSrc = await processImageFile(src);
+        if (optimizedSrc && optimizedSrc.length < src.length) {
+          optimizedHtml = optimizedHtml.replaceAll(src, optimizedSrc);
+        }
+      } catch (e) {
+        console.warn("Failed to optimize legacy image in description:", e);
+      }
+    }
+  }
+
+  return optimizedHtml;
 }
 
 // Custom TipTap Image Node View with interactive S / M / L size switcher

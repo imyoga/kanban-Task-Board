@@ -20,7 +20,7 @@ import { useBoardIdFromRoute, useTaskKeyFromRoute } from "@/hooks/useBoardId";
 import { useToast } from "@/hooks/use-toast";
 import { userDisplayName, userInitials } from "@/hooks/useAuth";
 import type { MentionMember } from "@/components/MentionSuggestionList";
-import RichTextEditor from "@/components/RichTextEditor";
+import RichTextEditor, { optimizeDescriptionImages } from "@/components/RichTextEditor";
 import TaskAttachments from "@/components/TaskAttachments";
 import TaskCommentsTab from "@/components/TaskCommentsTab";
 import TaskHistoryTab from "@/components/TaskHistoryTab";
@@ -273,11 +273,13 @@ export default function TaskPage() {
     );
   }
 
-  function handleSaveDescription() {
+  async function handleSaveDescription() {
     if (!currentTask) return;
 
+    const cleanedDescription = await optimizeDescriptionImages(description.trim());
+
     updateTask.mutate(
-      { id: currentTask.id, data: { description: description.trim() || undefined } },
+      { id: currentTask.id, data: { description: cleanedDescription || undefined } },
       {
         onSuccess: () => {
           invalidate();

@@ -24,6 +24,8 @@ const newServerBlock = `# Kanban Task Board -> port 45013 (backend serves fronte
         ssl_ciphers  HIGH:!aNULL:!MD5;
         ssl_prefer_server_ciphers  on;
 
+        client_max_body_size 25m;
+
         location / {
             proxy_pass         http://127.0.0.1:45013;
             proxy_http_version 1.1;

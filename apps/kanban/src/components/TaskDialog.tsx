@@ -24,7 +24,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import RichTextEditor from "@/components/RichTextEditor";
+import RichTextEditor, { optimizeDescriptionImages } from "@/components/RichTextEditor";
 import TaskAttachments from "@/components/TaskAttachments";
 import {
   Select,
@@ -198,13 +198,15 @@ export default function TaskDialog({
     }
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
 
+    const cleanedDescription = await optimizeDescriptionImages(description.trim());
+
     const payload = {
       title: title.trim(),
-      description: description.trim() || undefined,
+      description: cleanedDescription || undefined,
       columnId,
       priority,
       dueDate: dueDate || undefined,
