@@ -614,6 +614,129 @@ paths:
         "404":
           description: Not found
 
+  /tasks/attachments/config:
+    get:
+      operationId: getAttachmentConfig
+      tags: [tasks]
+      summary: Get task attachment upload configuration and limits
+      responses:
+        "200":
+          description: Attachment config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttachmentConfig"
+
+  /tasks/{id}/attachments:
+    get:
+      operationId: listTaskAttachments
+      tags: [tasks]
+      summary: List all attachments for a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of attachments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TaskAttachment"
+        "404":
+          description: Task or board not found
+    post:
+      operationId: uploadTaskAttachment
+      tags: [tasks]
+      summary: Upload an attachment for a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          description: Attachment uploaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskAttachment"
+        "400":
+          description: Bad request
+        "403":
+          description: Forbidden
+        "404":
+          description: Task or board not found
+
+  /tasks/{id}/attachments/{attachmentId}:
+    delete:
+      operationId: deleteTaskAttachment
+      tags: [tasks]
+      summary: Delete a task attachment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: attachmentId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Attachment deleted
+        "403":
+          description: Forbidden
+        "404":
+          description: Attachment not found
+
+  /tasks/{id}/attachments/{attachmentId}/download:
+    get:
+      operationId: downloadTaskAttachment
+      tags: [tasks]
+      summary: Download a task attachment file
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: attachmentId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: File download
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "403":
+          description: Forbidden
+        "404":
+          description: Attachment not found
+
 components:
   schemas:
     HealthStatus:
@@ -940,3 +1063,35 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/TeamMember"
+
+    AttachmentConfig:
+      type: object
+      required: [maxFileSizeMb, maxFileSizeBytes]
+      properties:
+        maxFileSizeMb:
+          type: integer
+        maxFileSizeBytes:
+          type: integer
+
+    TaskAttachment:
+      type: object
+      required: [id, taskId, boardId, userId, originalName, mimeType, size, createdAt]
+      properties:
+        id:
+          type: integer
+        taskId:
+          type: integer
+        boardId:
+          type: integer
+        userId:
+          type: integer
+        uploaderName:
+          type: string
+        originalName:
+          type: string
+        mimeType:
+          type: string
+        size:
+          type: integer
+        createdAt:
+          type: string

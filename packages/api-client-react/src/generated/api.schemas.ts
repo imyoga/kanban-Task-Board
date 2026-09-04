@@ -219,6 +219,23 @@ export interface BoardTeam {
   members: TeamMember[];
 }
 
+export interface AttachmentConfig {
+  maxFileSizeMb: number;
+  maxFileSizeBytes: number;
+}
+
+export interface TaskAttachment {
+  id: number;
+  taskId: number;
+  boardId: number;
+  userId: number;
+  uploaderName?: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  createdAt: string;
+}
+
 export type ListColumnsParams = {
   boardId: number;
 };
@@ -230,4 +247,8 @@ export type ListTasksParams = {
 
 export type GetTaskStatsParams = {
   boardId: number;
+};
+
+export type UploadTaskAttachmentBody = {
+  file: Blob;
 };

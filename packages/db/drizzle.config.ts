@@ -22,5 +22,6 @@ export default defineConfig({
     "teams",
     "team_members",
     "team_invites",
+    "task_attachments",
   ],
 });

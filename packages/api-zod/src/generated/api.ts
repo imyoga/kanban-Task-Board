@@ -430,3 +430,60 @@ export const UpdateTaskResponse = zod.object({
 export const DeleteTaskParams = zod.object({
   id: zod.coerce.number(),
 });
+
+/**
+ * @summary Get task attachment upload configuration and limits
+ */
+export const GetAttachmentConfigResponse = zod.object({
+  maxFileSizeMb: zod.number(),
+  maxFileSizeBytes: zod.number(),
+});
+
+/**
+ * @summary List all attachments for a task
+ */
+export const ListTaskAttachmentsParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListTaskAttachmentsResponseItem = zod.object({
+  id: zod.number(),
+  taskId: zod.number(),
+  boardId: zod.number(),
+  userId: zod.number(),
+  uploaderName: zod.string().optional(),
+  originalName: zod.string(),
+  mimeType: zod.string(),
+  size: zod.number(),
+  createdAt: zod.string(),
+});
+export const ListTaskAttachmentsResponse = zod.array(
+  ListTaskAttachmentsResponseItem,
+);
+
+/**
+ * @summary Upload an attachment for a task
+ */
+export const UploadTaskAttachmentParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UploadTaskAttachmentBody = zod.object({
+  file: zod.instanceof(File),
+});
+
+/**
+ * @summary Delete a task attachment
+ */
+export const DeleteTaskAttachmentParams = zod.object({
+  id: zod.coerce.number(),
+  attachmentId: zod.coerce.number(),
+});
+
+/**
+ * @summary Download a task attachment file
+ */
+export const DownloadTaskAttachmentParams = zod.object({
+  id: zod.coerce.number(),
+  attachmentId: zod.coerce.number(),
+});

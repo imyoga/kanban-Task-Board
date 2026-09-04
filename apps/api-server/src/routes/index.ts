@@ -5,6 +5,7 @@ import boardsRouter from "./boards";
 import columnsRouter from "./columns";
 import tasksRouter from "./tasks";
 import teamsRouter from "./teams";
+import attachmentsRouter from "./attachments";
 import { requireAuth } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
@@ -18,5 +19,6 @@ router.use(boardsRouter);
 router.use(columnsRouter);
 router.use(tasksRouter);
 router.use(teamsRouter);
+router.use(attachmentsRouter);
 
 export default router;

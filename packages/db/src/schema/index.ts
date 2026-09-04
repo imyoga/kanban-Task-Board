@@ -6,3 +6,4 @@ export * from "./users";
 export * from "./teams";
 export * from "./teamMembers";
 export * from "./teamInvites";
+export * from "./taskAttachments";

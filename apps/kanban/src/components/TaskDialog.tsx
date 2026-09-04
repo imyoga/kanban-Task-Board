@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import RichTextEditor from "@/components/RichTextEditor";
+import TaskAttachments from "@/components/TaskAttachments";
 import {
   Select,
   SelectContent,
@@ -229,6 +230,9 @@ export default function TaskDialog({
               placeholder="Write description, format with toolbar, or paste screenshots (Ctrl+V)..."
             />
           </div>
+
+          {/* Attachments Section */}
+          <TaskAttachments taskId={editTask?.id} isEdit={isEdit} />
 
           {/* Column & Priority Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

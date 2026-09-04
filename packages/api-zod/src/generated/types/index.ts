@@ -7,6 +7,7 @@
  */
 
 export * from "./assignee";
+export * from "./attachmentConfig";
 export * from "./board";
 export * from "./boardInput";
 export * from "./boardMember";
@@ -21,6 +22,7 @@ export * from "./healthStatus";
 export * from "./listColumnsParams";
 export * from "./listTasksParams";
 export * from "./task";
+export * from "./taskAttachment";
 export * from "./taskInput";
 export * from "./taskInputPriority";
 export * from "./taskPriority";
@@ -36,3 +38,4 @@ export * from "./teamInviteInput";
 export * from "./teamInviteResult";
 export * from "./teamMember";
 export * from "./teamUpdate";
+export * from "./uploadTaskAttachmentBody";

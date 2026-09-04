@@ -16,11 +16,13 @@ Provides the core Kanban board experience: creating and customizing boards, mana
 | `apps/kanban/src/components/KanbanColumn.tsx` | Droppable column container with task list and quick add button |
 | `apps/kanban/src/components/TaskCard.tsx` | Draggable task card rendering title, priority badges, tags, assignee, due date, and stripped HTML description snippet |
 | `apps/kanban/src/components/TaskDialog.tsx` | Modal form for creating and updating tasks with expanded WYSIWYG rich text editor layout |
+| `apps/kanban/src/components/TaskAttachments.tsx` | File attachments dropzone, list, size limit validation, download, and deletion |
 | `apps/kanban/src/components/RichTextEditor.tsx` | TipTap-based WYSIWYG rich text editor supporting inline formatting, screenshot clipboard pasting, drag-and-drop, S/M/L image sizing, and corner resizing |
 | `apps/kanban/src/lib/dnd.ts` | DnD helper calculations for column/task identifier parsing and target insertion |
 | `apps/api-server/src/routes/boards.ts` | Board CRUD and team linking endpoints |
 | `apps/api-server/src/routes/columns.ts` | Column CRUD and default column creation |
 | `apps/api-server/src/routes/tasks.ts` | Task CRUD, stats endpoint, and positional move reordering |
+| `apps/api-server/src/routes/attachments.ts` | Attachment upload (Multer with configurable max size), list, download, and delete |
 | `apps/api-server/src/lib/taskOrder.ts` | Positional indexing logic for calculating target positions |
 
 ---
@@ -83,3 +85,24 @@ When a new board is created, `seedDefaultColumnsForBoard()` initializes four def
 | `PATCH` | `/api/v1/tasks/:taskId/move` | Move task to target column and index position |
 | `DELETE` | `/api/v1/tasks/:taskId` | Delete task |
 | `GET` | `/api/v1/boards/:boardId/stats` | Aggregate stats by priority and column counts |
+| `GET` | `/api/v1/tasks/attachments/config` | Get max file size limit and upload configuration |
+| `GET` | `/api/v1/tasks/:taskId/attachments` | List all attachments for a task |
+| `POST` | `/api/v1/tasks/:taskId/attachments` | Upload file attachment (multipart/form-data) |
+| `DELETE` | `/api/v1/tasks/:taskId/attachments/:attachmentId` | Delete task attachment and unlink file from storage |
+| `GET` | `/api/v1/tasks/:taskId/attachments/:attachmentId/download` | Download attachment file |
+
+---
+
+## Task File Attachments
+
+Tasks support file attachments up to a configurable maximum size (default: **100MB**):
+
+- **Storage**: Files are saved on the server in `uploads/attachments/` using sanitized UUID timestamps to avoid collisions.
+- **Configurable Limits**: Configured through `MAX_FILE_SIZE_MB` in `.env` (backend) and `VITE_MAX_FILE_SIZE_MB` (frontend). The frontend also queries `/api/v1/tasks/attachments/config` to dynamically align with server limits.
+- **Client Features**:
+  - Dropzone supporting drag & drop or click-to-browse.
+  - Multi-file upload batching with upload progress.
+  - Pre-flight client-side size validation before transmission.
+  - File type icons for images, PDFs, archives, code/data, and generic documents.
+  - Human-readable file size and relative upload timestamps.
+  - Direct download and deletion actions.
