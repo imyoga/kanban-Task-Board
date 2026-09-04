@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useEditor, EditorContent, ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import ImageExtension from "@tiptap/extension-image";
@@ -7,6 +8,8 @@ import LinkExtension from "@tiptap/extension-link";
 import UnderlineExtension from "@tiptap/extension-underline";
 import TaskListExtension from "@tiptap/extension-task-list";
 import TaskItemExtension from "@tiptap/extension-task-item";
+import Mention from "@tiptap/extension-mention";
+import MentionSuggestionList, { type MentionMember } from "./MentionSuggestionList";
 import {
   Bold,
   Italic,
@@ -23,6 +26,7 @@ import {
   FileCode,
   Link as LinkIcon,
   Image as ImageIcon,
+  AtSign,
   Undo,
   Redo,
   Maximize2,
@@ -246,6 +250,15 @@ interface RichTextEditorProps {
   placeholder?: string;
   className?: string;
   id?: string;
+  members?: MentionMember[];
+}
+
+interface MentionState {
+  isOpen: boolean;
+  command?: (item: { id: string; label: string }) => void;
+  pos?: { top: number; left: number };
+  items: MentionMember[];
+  selectedIndex: number;
 }
 
 export default function RichTextEditor({
@@ -253,9 +266,17 @@ export default function RichTextEditor({
   onChange,
   placeholder = "Write description, notes, or paste screenshots (Ctrl+V)...",
   className,
+  members,
 }: RichTextEditorProps) {
+  const editorRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [mentionState, setMentionState] = useState<MentionState | null>(null);
+
+  const membersRef = useRef<MentionMember[]>(members ?? []);
+  useEffect(() => {
+    membersRef.current = members ?? [];
+  }, [members]);
 
   const editor = useEditor({
     extensions: [
@@ -287,6 +308,138 @@ export default function RichTextEditor({
       }),
       CustomImage.configure({
         allowBase64: true,
+      }),
+      Mention.configure({
+        HTMLAttributes: {
+          class:
+            "mention-badge inline-flex items-center font-semibold text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded-md text-xs select-none mx-0.5",
+        },
+        suggestion: {
+          char: "@",
+          allowSpaces: true,
+          allowedPrefixes: null,
+          items: ({ query }: { query: string }) => {
+            const list = membersRef.current || [];
+            const q = query.toLowerCase().trim();
+            if (!q) return list.slice(0, 8);
+            return list
+              .filter((m) => {
+                const name = `${m.firstName || ""} ${m.lastName || ""}`.toLowerCase().trim();
+                return name.includes(q) || m.email.toLowerCase().includes(q);
+              })
+              .slice(0, 8);
+          },
+          render: () => {
+            const getCoords = (props: any) => {
+              let rect: DOMRect | null | undefined = null;
+              try {
+                if (typeof props.clientRect === "function") {
+                  rect = props.clientRect();
+                }
+              } catch (e) {}
+
+              if (rect && rect.top > 0 && rect.bottom > 0) {
+                return { top: rect.bottom, left: rect.left };
+              }
+
+              try {
+                const view = editorRef.current?.view;
+                if (view) {
+                  const from = view.state.selection.from;
+                  const coords = view.coordsAtPos(from);
+                  if (coords && coords.top > 0) {
+                    return { top: coords.bottom, left: coords.left };
+                  }
+                }
+              } catch (e) {}
+
+              return undefined;
+            };
+
+            return {
+              onStart: (props: any) => {
+                const pos = getCoords(props);
+                const currentItems =
+                  props.items && props.items.length > 0
+                    ? props.items
+                    : membersRef.current?.slice(0, 8) || [];
+                setMentionState({
+                  isOpen: true,
+                  command: props.command,
+                  pos,
+                  items: currentItems,
+                  selectedIndex: 0,
+                });
+              },
+              onUpdate: (props: any) => {
+                const pos = getCoords(props);
+                const currentItems =
+                  props.items && props.items.length > 0
+                    ? props.items
+                    : membersRef.current?.slice(0, 8) || [];
+                setMentionState((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        command: props.command,
+                        pos: pos || prev.pos,
+                        items: currentItems,
+                        selectedIndex: 0,
+                      }
+                    : null,
+                );
+              },
+              onKeyDown: (props: any) => {
+                if (props.event.key === "ArrowUp") {
+                  setMentionState((prev) => {
+                    if (!prev || prev.items.length === 0) return prev;
+                    return {
+                      ...prev,
+                      selectedIndex:
+                        (prev.selectedIndex + prev.items.length - 1) % prev.items.length,
+                    };
+                  });
+                  return true;
+                }
+                if (props.event.key === "ArrowDown") {
+                  setMentionState((prev) => {
+                    if (!prev || prev.items.length === 0) return prev;
+                    return {
+                      ...prev,
+                      selectedIndex: (prev.selectedIndex + 1) % prev.items.length,
+                    };
+                  });
+                  return true;
+                }
+                if (props.event.key === "Enter" || props.event.key === "Tab") {
+                  let handled = false;
+                  setMentionState((prev) => {
+                    if (prev && prev.items.length > 0) {
+                      const selected = prev.items[prev.selectedIndex];
+                      if (selected) {
+                        const fullName =
+                          [selected.firstName, selected.lastName].filter(Boolean).join(" ").trim() ||
+                          selected.email;
+                        prev.command?.({ id: String(selected.userId), label: fullName });
+                        handled = true;
+                      }
+                    }
+                    return null;
+                  });
+                  return handled;
+                }
+                if (props.event.key === "Escape") {
+                  setMentionState(null);
+                  return true;
+                }
+                return false;
+              },
+              onExit: () => {
+                setMentionState(null);
+              },
+            };
+          },
+        },
       }),
     ],
     content: value || "",
@@ -350,6 +503,8 @@ export default function RichTextEditor({
       onChange(editor.getHTML());
     },
   });
+
+  editorRef.current = editor;
 
   // Sync external value changes when switching tasks
   useEffect(() => {
@@ -746,6 +901,24 @@ export default function RichTextEditor({
           <TooltipContent side="top">Upload Image / Paste Screenshot</TooltipContent>
         </Tooltip>
 
+        {/* Tag Teammate Button */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-primary hover:text-primary hover:bg-primary/10 transition-colors"
+              onClick={() => {
+                editor?.chain().focus().insertContent("@").run();
+              }}
+            >
+              <AtSign className="w-3.5 h-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="top">Tag Teammate (@)</TooltipContent>
+        </Tooltip>
+
         <span className="w-px h-4 bg-border/80 mx-1" />
 
         {/* Undo */}
@@ -793,6 +966,38 @@ export default function RichTextEditor({
             <span>Processing image...</span>
           </div>
         )}
+
+        {mentionState?.isOpen &&
+          typeof document !== "undefined" &&
+          createPortal(
+            <div
+              style={{
+                position: "fixed",
+                top: mentionState.pos?.top
+                  ? Math.min(window.innerHeight - 250, Math.max(10, mentionState.pos.top + 6))
+                  : 220,
+                left: mentionState.pos?.left
+                  ? Math.min(window.innerWidth - 270, Math.max(16, mentionState.pos.left))
+                  : 240,
+                zIndex: 999999,
+              }}
+              className="pointer-events-auto shadow-2xl"
+            >
+              <MentionSuggestionList
+                members={mentionState.items}
+                selectedIndex={mentionState.selectedIndex}
+                onSelect={(member) => {
+                  const fullName =
+                    [member.firstName, member.lastName].filter(Boolean).join(" ").trim() ||
+                    member.email;
+                  mentionState.command?.({ id: String(member.userId), label: fullName });
+                  setMentionState(null);
+                  editor?.commands.focus();
+                }}
+              />
+            </div>,
+            document.body,
+          )}
       </div>
 
       {/* Bottom status bar */}

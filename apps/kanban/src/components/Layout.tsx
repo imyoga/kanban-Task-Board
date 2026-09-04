@@ -8,6 +8,7 @@ import { useMe, useLogout, userInitials } from "@/hooks/useAuth";
 import { useListBoards } from "@workspace/api-client-react";
 import { useBoardIdFromRoute } from "@/hooks/useBoardId";
 import { Badge } from "@/components/ui/badge";
+import NotificationBell from "@/components/NotificationBell";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -161,9 +162,10 @@ export default function Layout({ children }: LayoutProps) {
                 {userInitials(user)}
               </div>
               <span className="text-xs text-sidebar-foreground/60 truncate flex-1">{user.email}</span>
+              <NotificationBell className="p-1 h-6 w-6 rounded-md border-none text-sidebar-foreground/50 hover:text-white hover:bg-sidebar-accent/60 shadow-none" />
               <Link href="/account">
                 <span
-                  className="p-1 rounded-md text-sidebar-foreground/50 hover:text-white hover:bg-sidebar-accent/60 transition-colors"
+                  className="p-1 rounded-md text-sidebar-foreground/50 hover:text-white hover:bg-sidebar-accent/60 transition-colors flex items-center justify-center"
                   aria-label="Account settings"
                 >
                   <UserCircle className="w-4 h-4" />

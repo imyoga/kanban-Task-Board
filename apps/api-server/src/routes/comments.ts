@@ -11,6 +11,7 @@ import {
 } from "@workspace/api-zod";
 import { getBoardAccess } from "../lib/boardAccess";
 import { recordTaskActivity } from "../lib/taskActivity";
+import { createMentionNotifications } from "../lib/notifications";
 
 const router = Router();
 
@@ -137,6 +138,15 @@ router.post("/tasks/:id/comments", async (req, res) => {
     message: "Added a comment",
   });
 
+  await createMentionNotifications({
+    boardId: task.boardId,
+    taskId,
+    commentId: created.id,
+    actorId: userId,
+    content,
+    type: "mention_comment",
+  });
+
   res.status(201).json(serializeComment(created, author));
 });
 
@@ -213,6 +223,15 @@ router.patch("/tasks/:id/comments/:commentId", async (req, res) => {
     field: "comment",
     newValue: content.slice(0, 100),
     message: "Edited a comment",
+  });
+
+  await createMentionNotifications({
+    boardId: task.boardId,
+    taskId,
+    commentId: updated.id,
+    actorId: userId,
+    content,
+    type: "mention_comment",
   });
 
   res.json(serializeComment(updated, author));

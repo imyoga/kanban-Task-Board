@@ -2,6 +2,7 @@ import { useGetTaskStats, useListColumns } from "@workspace/api-client-react";
 import { Loader2, AlertCircle, CheckCircle2, ListTodo, BarChart3, TrendingUp, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBoardIdFromRoute } from "@/hooks/useBoardId";
+import NotificationBell from "@/components/NotificationBell";
 
 const PRIORITY_COLORS = {
   high: { bar: "bg-rose-500", text: "text-rose-600 dark:text-rose-400", bg: "bg-rose-500/10 border-rose-200 dark:border-rose-800/40" },
@@ -35,14 +36,17 @@ export default function StatsPage() {
   return (
     <div className="flex-1 overflow-y-auto">
       {/* Header */}
-      <div className="flex items-center gap-2.5 px-6 py-4 border-b border-border/80 bg-background/95 backdrop-blur-sm">
-        <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-          <BarChart3 className="w-4 h-4" />
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border/80 bg-background/95 backdrop-blur-sm">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+            <BarChart3 className="w-4 h-4" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-foreground tracking-tight">Board Analytics</h2>
+            <p className="text-xs text-muted-foreground">Task metrics, distribution, and completion rates</p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-lg font-bold text-foreground tracking-tight">Board Analytics</h2>
-          <p className="text-xs text-muted-foreground">Task metrics, distribution, and completion rates</p>
-        </div>
+        <NotificationBell />
       </div>
 
       <div className="px-8 py-6 space-y-8 max-w-4xl">

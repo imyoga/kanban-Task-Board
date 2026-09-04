@@ -10,4 +10,4 @@ export * from "./taskAttachments";
 export * from "./taskComments";
 export * from "./taskActivities";
 export * from "./passwordResetTokens";
-
+export * from "./notifications";

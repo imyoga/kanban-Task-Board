@@ -31,6 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2, X, Users, Mail, Link as LinkIcon, UserMinus, Clock, ShieldCheck } from "lucide-react";
 import { userDisplayName, userInitials } from "@/hooks/useAuth";
+import NotificationBell from "@/components/NotificationBell";
 
 function TeamCard({ teamId }: { teamId: number }) {
   const qc = useQueryClient();
@@ -395,16 +396,19 @@ export default function TeamsPage() {
     <div className="flex-1 overflow-y-auto p-8">
       <div className="max-w-3xl space-y-8">
         {/* Page Header */}
-        <div>
-          <div className="flex items-center gap-2.5 mb-1.5">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-              <Users className="w-5 h-5" />
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2.5 mb-1.5">
+              <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                <Users className="w-5 h-5" />
+              </div>
+              <h1 className="text-2xl font-bold text-foreground tracking-tight">Teams & Workspaces</h1>
             </div>
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">Teams & Workspaces</h1>
+            <p className="text-sm text-muted-foreground">
+              Create teams, invite colleagues, and link boards so your entire team can collaborate and assign tasks.
+            </p>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Create teams, invite colleagues, and link boards so your entire team can collaborate and assign tasks.
-          </p>
+          <NotificationBell />
         </div>
 
         {/* Create Team Form */}

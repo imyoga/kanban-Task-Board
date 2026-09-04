@@ -6,10 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface BoardMember {
-  userId: number;
-  email: string;
-  firstName?: string;
-  lastName?: string;
-  isOwner: boolean;
-}
+export type MarkAllNotificationsRead200 = {
+  success?: boolean;
+};

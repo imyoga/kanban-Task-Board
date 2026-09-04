@@ -138,25 +138,65 @@ router.get("/boards/:id/members", async (req, res) => {
     return;
   }
 
+  const memberMap = new Map<
+    number,
+    { userId: number; email: string; firstName: string; lastName: string; isOwner: boolean }
+  >();
+
+  // 1. Board owner
   const [owner] = await db.select().from(usersTable).where(eq(usersTable.id, access.board.ownerId));
-  const members = await db
+  if (owner) {
+    memberMap.set(owner.id, {
+      userId: owner.id,
+      email: owner.email,
+      firstName: owner.firstName,
+      lastName: owner.lastName,
+      isOwner: true,
+    });
+  }
+
+  // 2. Direct board members
+  const directMembers = await db
     .select({ user: usersTable })
     .from(boardMembersTable)
     .innerJoin(usersTable, eq(boardMembersTable.userId, usersTable.id))
     .where(eq(boardMembersTable.boardId, boardId));
 
-  res.json([
-  {
-    userId: owner!.id,
-    email: owner!.email,
-    isOwner: true,
-  },
-  ...members.map((m) => ({
-    userId: m.user.id,
-    email: m.user.email,
-    isOwner: false,
-  })),
-  ]);
+  for (const m of directMembers) {
+    if (!memberMap.has(m.user.id)) {
+      memberMap.set(m.user.id, {
+        userId: m.user.id,
+        email: m.user.email,
+        firstName: m.user.firstName,
+        lastName: m.user.lastName,
+        isOwner: false,
+      });
+    }
+  }
+
+  // 3. Linked team members
+  const [team] = await db.select().from(teamsTable).where(eq(teamsTable.boardId, boardId));
+  if (team) {
+    const teamMembers = await db
+      .select({ user: usersTable })
+      .from(teamMembersTable)
+      .innerJoin(usersTable, eq(teamMembersTable.userId, usersTable.id))
+      .where(eq(teamMembersTable.teamId, team.id));
+
+    for (const tm of teamMembers) {
+      if (!memberMap.has(tm.user.id)) {
+        memberMap.set(tm.user.id, {
+          userId: tm.user.id,
+          email: tm.user.email,
+          firstName: tm.user.firstName,
+          lastName: tm.user.lastName,
+          isOwner: tm.user.id === access.board.ownerId,
+        });
+      }
+    }
+  }
+
+  res.json(Array.from(memberMap.values()));
 });
 
 router.post("/boards/:id/members", async (req, res) => {

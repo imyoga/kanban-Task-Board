@@ -22,6 +22,7 @@ import { getBoardAccess, getTeamForBoard } from "../lib/boardAccess";
 import { applyTaskMove } from "../lib/taskOrder";
 import { broadcastBoardEvent } from "../lib/boardEvents";
 import { recordTaskActivity } from "../lib/taskActivity";
+import { createMentionNotifications } from "../lib/notifications";
 
 const router = Router();
 
@@ -399,6 +400,16 @@ router.patch("/tasks/:id", async (req, res) => {
       field: "description",
       message: "Updated task description",
     });
+
+    if (body.description && typeof body.description === "string") {
+      await createMentionNotifications({
+        boardId: existing.boardId,
+        taskId: existing.id,
+        actorId: userId,
+        content: body.description,
+        type: "mention_description",
+      });
+    }
   }
 
   if (body.priority !== undefined && body.priority !== existing.priority) {

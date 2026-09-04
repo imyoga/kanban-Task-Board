@@ -870,6 +870,91 @@ paths:
         "404":
           description: Task or board not found
 
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List all notifications for the authenticated user
+      parameters:
+        - name: unreadOnly
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: List of notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+        "401":
+          description: Unauthorized
+
+  /notifications/unread-count:
+    get:
+      operationId: getUnreadNotificationsCount
+      tags: [notifications]
+      summary: Get count of unread notifications
+      responses:
+        "200":
+          description: Unread notifications count
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnreadNotificationsCount"
+        "401":
+          description: Unauthorized
+
+  /notifications/read-all:
+    post:
+      operationId: markAllNotificationsRead
+      tags: [notifications]
+      summary: Mark all unread notifications as read
+      responses:
+        "200":
+          description: All notifications marked as read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        "401":
+          description: Unauthorized
+
+  /notifications/{id}/read:
+    patch:
+      operationId: updateNotificationReadStatus
+      tags: [notifications]
+      summary: Mark a single notification as read or unread
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationUpdateInput"
+      responses:
+        "200":
+          description: Notification updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+        "401":
+          description: Unauthorized
+        "404":
+          description: Notification not found
+
 components:
   schemas:
     HealthStatus:
@@ -922,6 +1007,10 @@ components:
         userId:
           type: integer
         email:
+          type: string
+        firstName:
+          type: string
+        lastName:
           type: string
         isOwner:
           type: boolean
@@ -1309,4 +1398,53 @@ components:
           type: string
         createdAt:
           type: string
+
+    Notification:
+      type: object
+      required: [id, userId, actorId, boardId, boardName, taskId, taskKey, taskTitle, type, title, content, isRead, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        actorId:
+          type: integer
+        actor:
+          $ref: "#/components/schemas/TaskCommentAuthor"
+        boardId:
+          type: integer
+        boardName:
+          type: string
+        taskId:
+          type: integer
+        taskKey:
+          type: string
+        taskTitle:
+          type: string
+        commentId:
+          type: integer
+          nullable: true
+        type:
+          type: string
+        title:
+          type: string
+        content:
+          type: string
+        isRead:
+          type: boolean
+        createdAt:
+          type: string
+
+    UnreadNotificationsCount:
+      type: object
+      required: [count]
+      properties:
+        count:
+          type: integer
+
+    NotificationUpdateInput:
+      type: object
+      properties:
+        isRead:
+          type: boolean
 

@@ -33,6 +33,8 @@ export interface BoardUpdate {
 export interface BoardMember {
   userId: number;
   email: string;
+  firstName?: string;
+  lastName?: string;
   isOwner: boolean;
 }
 
@@ -278,6 +280,32 @@ export interface TaskActivity {
   createdAt: string;
 }
 
+export interface Notification {
+  id: number;
+  userId: number;
+  actorId: number;
+  actor?: TaskCommentAuthor;
+  boardId: number;
+  boardName: string;
+  taskId: number;
+  taskKey: string;
+  taskTitle: string;
+  commentId?: number | null;
+  type: string;
+  title: string;
+  content: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface UnreadNotificationsCount {
+  count: number;
+}
+
+export interface NotificationUpdateInput {
+  isRead?: boolean;
+}
+
 export type ListColumnsParams = {
   boardId: number;
 };
@@ -293,4 +321,12 @@ export type GetTaskStatsParams = {
 
 export type UploadTaskAttachmentBody = {
   file: Blob;
+};
+
+export type ListNotificationsParams = {
+  unreadOnly?: boolean;
+};
+
+export type MarkAllNotificationsRead200 = {
+  success?: boolean;
 };

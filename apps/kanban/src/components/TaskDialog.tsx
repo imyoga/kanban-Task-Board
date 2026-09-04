@@ -4,13 +4,16 @@ import {
   useCreateTask,
   useUpdateTask,
   useGetBoardTeam,
+  useListBoardMembers,
   getListTasksQueryKey,
   getGetTaskStatsQueryKey,
   getGetBoardTeamQueryKey,
+  getListBoardMembersQueryKey,
   getListTaskCommentsQueryKey,
   getListTaskActivitiesQueryKey,
 } from "@workspace/api-client-react";
 import type { Task, Column } from "@workspace/api-client-react";
+import type { MentionMember } from "@/components/MentionSuggestionList";
 import {
   Dialog,
   DialogContent,
@@ -90,6 +93,9 @@ export default function TaskDialog({
   const { data: boardTeam } = useGetBoardTeam(boardId, {
     query: { enabled: open, queryKey: getGetBoardTeamQueryKey(boardId) },
   });
+  const { data: boardMembers = [] } = useListBoardMembers(boardId, {
+    query: { enabled: open, queryKey: getListBoardMembersQueryKey(boardId) },
+  });
   const qc = useQueryClient();
   const { toast } = useToast();
   const createTask = useCreateTask();
@@ -112,6 +118,37 @@ export default function TaskDialog({
       ),
     [boardTeam?.members],
   );
+
+  const mentionMembers = useMemo(() => {
+    const list: MentionMember[] = [];
+    const seen = new Set<number>();
+
+    for (const m of boardMembers) {
+      if (!seen.has(m.userId)) {
+        seen.add(m.userId);
+        list.push({
+          userId: m.userId,
+          email: m.email,
+          firstName: m.firstName,
+          lastName: m.lastName,
+        });
+      }
+    }
+
+    for (const tm of teamMembers) {
+      if (!seen.has(tm.userId)) {
+        seen.add(tm.userId);
+        list.push({
+          userId: tm.userId,
+          email: tm.email,
+          firstName: tm.firstName,
+          lastName: tm.lastName,
+        });
+      }
+    }
+
+    return list;
+  }, [boardMembers, teamMembers]);
 
   // Initialize form fields only when dialog opens or the target task changes
   useEffect(() => {
@@ -250,6 +287,7 @@ export default function TaskDialog({
               onChange={setDescription}
               placeholder="Write description, format with toolbar, or paste screenshots (Ctrl+V)..."
               className="w-full max-w-full min-w-0"
+              members={mentionMembers}
             />
           </div>
 
@@ -397,7 +435,12 @@ export default function TaskDialog({
                 </div>
 
                 <TabsContent value="comments" className="mt-3 focus-visible:outline-none">
-                  <TaskCommentsTab taskId={editTask.id} boardId={boardId} activeTab={activeBottomTab} />
+                  <TaskCommentsTab
+                    taskId={editTask.id}
+                    boardId={boardId}
+                    activeTab={activeBottomTab}
+                    members={mentionMembers}
+                  />
                 </TabsContent>
 
                 <TabsContent value="history" className="mt-3 focus-visible:outline-none">

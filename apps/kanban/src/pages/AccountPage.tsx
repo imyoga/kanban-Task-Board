@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import NotificationBell from "@/components/NotificationBell";
 
 export default function AccountPage() {
   const { data: user } = useMe();
@@ -41,10 +42,15 @@ export default function AccountPage() {
   return (
     <div className="flex-1 overflow-y-auto p-8">
       <div className="max-w-md">
-        <h1 className="text-2xl font-semibold text-foreground mb-1">Account</h1>
-        <p className="text-sm text-muted-foreground mb-8">
-          Update your name shown on task assignments and team lists.
-        </p>
+        <div className="flex items-start justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-2xl font-semibold text-foreground mb-1">Account</h1>
+            <p className="text-sm text-muted-foreground">
+              Update your name shown on task assignments and team lists.
+            </p>
+          </div>
+          <NotificationBell />
+        </div>
 
         {user && (
           <form onSubmit={handleSubmit} className="space-y-4 bg-card border border-card-border rounded-xl p-6">

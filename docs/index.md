@@ -10,6 +10,7 @@ Collaborative task management application with real-time drag-and-drop boards, c
 | [development.md](./development.md) | Local setup, Docker Postgres, scripts, Windows background service setup (NSSM), troubleshooting |
 | [boards-and-tasks.md](./boards-and-tasks.md) | Board management, default columns, task CRUD, drag-and-drop reordering, priority tags, and stats |
 | [teams-and-auth.md](./teams-and-auth.md) | User authentication, scrypt password hashing, teams, invite codes, member roles, and board permissions |
+| [notifications-and-mentions.md](./notifications-and-mentions.md) | User @mention tagging in task descriptions/comments, notification bell, drawer/modal, unread indicators, and deep-link navigation |
 | [api-contracts.md](./api-contracts.md) | OpenAPI 3.0 spec maintenance, Orval code generator, Zod schemas, and React Query client |
 
 ## Quick Links

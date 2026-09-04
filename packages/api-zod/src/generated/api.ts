@@ -75,6 +75,8 @@ export const ListBoardMembersParams = zod.object({
 export const ListBoardMembersResponseItem = zod.object({
   userId: zod.number(),
   email: zod.string(),
+  firstName: zod.string().optional(),
+  lastName: zod.string().optional(),
   isOwner: zod.boolean(),
 });
 export const ListBoardMembersResponse = zod.array(ListBoardMembersResponseItem);
@@ -603,3 +605,88 @@ export const ListTaskActivitiesResponseItem = zod.object({
 export const ListTaskActivitiesResponse = zod.array(
   ListTaskActivitiesResponseItem,
 );
+
+/**
+ * @summary List all notifications for the authenticated user
+ */
+export const ListNotificationsQueryParams = zod.object({
+  unreadOnly: zod.coerce.boolean().optional(),
+});
+
+export const ListNotificationsResponseItem = zod.object({
+  id: zod.number(),
+  userId: zod.number(),
+  actorId: zod.number(),
+  actor: zod
+    .object({
+      id: zod.number(),
+      email: zod.string(),
+      firstName: zod.string(),
+      lastName: zod.string(),
+    })
+    .optional(),
+  boardId: zod.number(),
+  boardName: zod.string(),
+  taskId: zod.number(),
+  taskKey: zod.string(),
+  taskTitle: zod.string(),
+  commentId: zod.number().nullish(),
+  type: zod.string(),
+  title: zod.string(),
+  content: zod.string(),
+  isRead: zod.boolean(),
+  createdAt: zod.string(),
+});
+export const ListNotificationsResponse = zod.array(
+  ListNotificationsResponseItem,
+);
+
+/**
+ * @summary Get count of unread notifications
+ */
+export const GetUnreadNotificationsCountResponse = zod.object({
+  count: zod.number(),
+});
+
+/**
+ * @summary Mark all unread notifications as read
+ */
+export const MarkAllNotificationsReadResponse = zod.object({
+  success: zod.boolean().optional(),
+});
+
+/**
+ * @summary Mark a single notification as read or unread
+ */
+export const UpdateNotificationReadStatusParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateNotificationReadStatusBody = zod.object({
+  isRead: zod.boolean().optional(),
+});
+
+export const UpdateNotificationReadStatusResponse = zod.object({
+  id: zod.number(),
+  userId: zod.number(),
+  actorId: zod.number(),
+  actor: zod
+    .object({
+      id: zod.number(),
+      email: zod.string(),
+      firstName: zod.string(),
+      lastName: zod.string(),
+    })
+    .optional(),
+  boardId: zod.number(),
+  boardName: zod.string(),
+  taskId: zod.number(),
+  taskKey: zod.string(),
+  taskTitle: zod.string(),
+  commentId: zod.number().nullish(),
+  type: zod.string(),
+  title: zod.string(),
+  content: zod.string(),
+  isRead: zod.boolean(),
+  createdAt: zod.string(),
+});

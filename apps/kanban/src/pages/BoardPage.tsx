@@ -36,6 +36,7 @@ import TaskCard, { TaskCardPreview } from "@/components/TaskCard";
 import TaskDialog from "@/components/TaskDialog";
 import AddColumnDialog from "@/components/AddColumnDialog";
 import BoardSettingsDialog from "@/components/BoardSettingsDialog";
+import NotificationBell from "@/components/NotificationBell";
 import {
   Plus,
   Loader2,
@@ -562,7 +563,7 @@ export default function BoardPage() {
             {board?.isOwner && (
               <button
                 onClick={() => setSettingsOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 border border-border text-xs font-semibold text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/80 transition-colors shadow-2xs"
+                className="flex items-center gap-1.5 px-3 h-8 border border-border text-xs font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/80 transition-colors shadow-2xs"
                 aria-label="Board settings"
                 title="Board settings & team linking"
               >
@@ -571,25 +572,7 @@ export default function BoardPage() {
               </button>
             )}
 
-            <button
-              onClick={() => setAddColumnOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-border text-xs font-semibold text-foreground rounded-lg hover:bg-muted/80 transition-colors shadow-2xs"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Column</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setEditTask(null);
-                setDefaultColumnId(displayColumns[0]?.id);
-                setTaskDialogOpen(true);
-              }}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/90 transition-all shadow-sm hover:shadow"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Task</span>
-            </button>
+            <NotificationBell />
           </div>
         </div>
 

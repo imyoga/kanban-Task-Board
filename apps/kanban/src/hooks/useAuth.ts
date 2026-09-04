@@ -196,12 +196,15 @@ export function useResetPassword() {
   });
 }
 
-export function userInitials(user: { firstName: string; lastName: string }) {
+export function userInitials(user: { firstName?: string; lastName?: string; email?: string }) {
   const first = user.firstName?.[0] ?? "";
   const last = user.lastName?.[0] ?? "";
-  return (first + last).toUpperCase() || "?";
+  if (first || last) {
+    return (first + last).toUpperCase();
+  }
+  return user.email?.[0]?.toUpperCase() || "?";
 }
 
-export function userDisplayName(user: { firstName: string; lastName: string }) {
-  return `${user.firstName} ${user.lastName}`.trim();
+export function userDisplayName(user: { firstName?: string; lastName?: string; email?: string }) {
+  return `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || user.email || "User";
 }
