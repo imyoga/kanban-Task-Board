@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Users, Trash2, Settings, User } from "lucide-react";
 import { userDisplayName, userInitials } from "@/hooks/useAuth";
@@ -42,6 +43,7 @@ interface Props {
 export default function BoardSettingsDialog({ board, open, onOpenChange, onDeleted }: Props) {
   const [name, setName] = useState(board.name);
   const [key, setKey] = useState(board.key || "BOARD");
+  const [allowLinkPreview, setAllowLinkPreview] = useState(board.allowLinkPreview ?? false);
   const qc = useQueryClient();
   const { toast } = useToast();
   const updateBoard = useUpdateBoard();
@@ -59,18 +61,23 @@ export default function BoardSettingsDialog({ board, open, onOpenChange, onDelet
     if (open) {
       setName(board.name);
       setKey(board.key || "BOARD");
+      setAllowLinkPreview(board.allowLinkPreview ?? false);
     }
-  }, [open, board.name, board.key]);
+  }, [open, board.name, board.key, board.allowLinkPreview]);
 
   function handleSaveDetails(e: React.FormEvent) {
     e.preventDefault();
     const cleanName = name.trim();
     const cleanKey = key.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, "");
     if (!cleanName || cleanKey.length < 2) return;
-    if (cleanName === board.name && cleanKey === (board.key || "BOARD")) return;
+    const isDirty =
+      cleanName !== board.name ||
+      cleanKey !== (board.key || "BOARD") ||
+      allowLinkPreview !== (board.allowLinkPreview ?? false);
+    if (!isDirty) return;
 
     updateBoard.mutate(
-      { id: board.id, data: { name: cleanName, key: cleanKey } },
+      { id: board.id, data: { name: cleanName, key: cleanKey, allowLinkPreview } },
       {
         onSuccess: () => {
           qc.invalidateQueries({ queryKey: getListBoardsQueryKey() });
@@ -202,13 +209,48 @@ export default function BoardSettingsDialog({ board, open, onOpenChange, onDelet
               </p>
             </div>
 
+            {/* Public Link Previews Toggle */}
+            <div className="pt-3 pb-1 border-t border-border/50 space-y-2">
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-0.5 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <Label
+                      htmlFor="allow-link-preview"
+                      className="text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer"
+                    >
+                      Allow Link Previews
+                    </Label>
+                    <span
+                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                        allowLinkPreview
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800"
+                          : "bg-muted text-muted-foreground border-border"
+                      }`}
+                    >
+                      {allowLinkPreview ? "Public Preview" : "Protected"}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-snug">
+                    When enabled, sharing task links in WhatsApp, Slack, etc. unfurls a rich preview with the task title, status, and notes. When disabled, links remain private and unauthenticated bots cannot read ticket contents.
+                  </p>
+                </div>
+                <Switch
+                  id="allow-link-preview"
+                  checked={allowLinkPreview}
+                  onCheckedChange={setAllowLinkPreview}
+                />
+              </div>
+            </div>
+
             <div className="flex justify-end pt-1">
               <Button
                 type="submit"
                 disabled={
                   !name.trim() ||
                   key.trim().length < 2 ||
-                  (name.trim() === board.name && key.trim() === (board.key || "BOARD")) ||
+                  (name.trim() === board.name &&
+                    key.trim() === (board.key || "BOARD") &&
+                    allowLinkPreview === (board.allowLinkPreview ?? false)) ||
                   updateBoard.isPending
                 }
                 className="h-9 px-4 font-medium"

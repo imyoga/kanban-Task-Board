@@ -69,15 +69,17 @@ Boards and tasks support Jira/Linear-style keys and deep-linkable URLs:
 - **Board Keys**: Each board has a unique uppercase alphanumeric key (e.g. `PRDED` for "Product Development", `MYBRD` for "My Board"). Owners and managers can view and configure the Board Key in **Board Settings**.
 - **Task Numbering**: Each task is assigned a sequential `taskNumber` per board.
 - **Task Key Badges**: Task cards render a monospaced badge (e.g. `PRDED-5945`, `PRDED-7`) preceding the title.
-- **Deep-Linkable URLs & Social Link Previews (WhatsApp, Slack, etc.)**:
-  - Clicking a task key badge or "Share Link" button opens or copies `/boards/:boardId/:taskKey` (e.g. `/boards/1/PRDED-5945`).
+  - **Configurable Privacy Toggle (Board Settings)**:
+    - Owners/managers can configure **"Allow Link Previews"** in Board Settings.
+    - When enabled (`true`): Unfurl cards display full task title, status, priority, and description snippet in WhatsApp/messengers.
+    - When disabled (`false`, default for privacy): Unauthenticated crawlers receive protected metadata (`[<key>] Protected Task — Sign in to Kanban Task Board to view this task`) so private ticket titles and details are never exposed to scrapers.
   - **Dynamic Browser Tab Titles**: The dedicated task page sets the browser document title to `[<board key>-<task number>] <title>` (e.g. `[PRDED-5945] Test User`). Inline title edits update the tab title dynamically, and navigating away restores `"Kanban Board"`.
   - **Server-Rendered Open Graph & Twitter Cards**: When sharing a task URL in WhatsApp, Slack, Discord, Telegram, or iMessage, the backend dynamically queries the task/board and injects Open Graph meta tags into `index.html`. Unfurl cards display:
     - `og:title`: `[<board key>-<task number>] <title>`
     - `og:description`: Formatted snippet containing Status, Priority, Board, and clean stripped HTML description.
     - `og:image`: High-resolution Open Graph image (`/opengraph.jpg`).
     - `og:site_name`: `Kanban Task Board`.
-  - **Public Preview API**: `GET /api/v1/meta/task-preview?boardId=:id&taskKey=:key` provides public, unauthenticated metadata for crawlers and dev-server HTML transformers.
+  - **Public Preview API**: `GET /api/v1/meta/task-preview?boardId=:id&taskKey=:key` provides metadata for crawlers and dev-server HTML transformers respecting the board's privacy setting.
 
 ---
 

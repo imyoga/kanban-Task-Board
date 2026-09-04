@@ -10,6 +10,7 @@ export interface Board {
   id: number;
   name: string;
   key: string;
+  allowLinkPreview: boolean;
   isOwner: boolean;
   isShared: boolean;
   createdAt: string;

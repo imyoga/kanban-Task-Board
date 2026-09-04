@@ -13,6 +13,7 @@ export interface Board {
   id: number;
   name: string;
   key: string;
+  allowLinkPreview: boolean;
   isOwner: boolean;
   isShared: boolean;
   createdAt: string;
@@ -22,12 +23,14 @@ export interface BoardInput {
   /** @minLength 1 */
   name?: string;
   key?: string;
+  allowLinkPreview?: boolean;
 }
 
 export interface BoardUpdate {
   /** @minLength 1 */
   name?: string;
   key?: string;
+  allowLinkPreview?: boolean;
 }
 
 export interface BoardMember {

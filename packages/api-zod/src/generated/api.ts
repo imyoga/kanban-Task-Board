@@ -22,6 +22,7 @@ export const ListBoardsResponseItem = zod.object({
   id: zod.number(),
   name: zod.string(),
   key: zod.string(),
+  allowLinkPreview: zod.boolean(),
   isOwner: zod.boolean(),
   isShared: zod.boolean(),
   createdAt: zod.string(),
@@ -35,6 +36,7 @@ export const ListBoardsResponse = zod.array(ListBoardsResponseItem);
 export const CreateBoardBody = zod.object({
   name: zod.string().min(1).optional(),
   key: zod.string().optional(),
+  allowLinkPreview: zod.boolean().optional(),
 });
 
 /**
@@ -47,12 +49,14 @@ export const UpdateBoardParams = zod.object({
 export const UpdateBoardBody = zod.object({
   name: zod.string().min(1).optional(),
   key: zod.string().optional(),
+  allowLinkPreview: zod.boolean().optional(),
 });
 
 export const UpdateBoardResponse = zod.object({
   id: zod.number(),
   name: zod.string(),
   key: zod.string(),
+  allowLinkPreview: zod.boolean(),
   isOwner: zod.boolean(),
   isShared: zod.boolean(),
   createdAt: zod.string(),

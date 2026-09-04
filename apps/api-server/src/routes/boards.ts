@@ -19,6 +19,7 @@ function serializeBoard(board: typeof boardsTable.$inferSelect, userId: number) 
     id: board.id,
     name: board.name,
     key: board.key || "BOARD",
+    allowLinkPreview: Boolean(board.allowLinkPreview),
     isOwner,
     isShared: !isOwner,
     createdAt: board.createdAt.toISOString(),
@@ -63,6 +64,10 @@ router.post("/boards", async (req, res) => {
   const customKey = typeof req.body?.key === "string" ? req.body.key.trim() : undefined;
 
   const board = await createDefaultBoardForUser(userId, name, customKey);
+  if (typeof req.body?.allowLinkPreview === "boolean") {
+    await db.update(boardsTable).set({ allowLinkPreview: req.body.allowLinkPreview }).where(eq(boardsTable.id, board.id));
+    board.allowLinkPreview = req.body.allowLinkPreview;
+  }
   await seedDefaultColumnsForBoard(board.id, userId);
   res.status(201).json(serializeBoard(board, userId));
 });
@@ -86,6 +91,9 @@ router.patch("/boards/:id", async (req, res) => {
     if (cleanKey.length >= 2) {
       updates.key = cleanKey;
     }
+  }
+  if (typeof req.body?.allowLinkPreview === "boolean") {
+    updates.allowLinkPreview = req.body.allowLinkPreview;
   }
 
   if (Object.keys(updates).length === 0) {

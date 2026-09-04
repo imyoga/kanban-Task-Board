@@ -10,4 +10,5 @@ export interface BoardInput {
   /** @minLength 1 */
   name?: string;
   key?: string;
+  allowLinkPreview?: boolean;
 }

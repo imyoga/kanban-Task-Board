@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, timestamp, boolean } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 
 export const boardsTable = pgTable("boards", {
@@ -6,6 +6,7 @@ export const boardsTable = pgTable("boards", {
   ownerId: integer("owner_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   key: text("key").notNull().default("BOARD"),
+  allowLinkPreview: boolean("allow_link_preview").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

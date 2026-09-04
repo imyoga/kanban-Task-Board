@@ -71,6 +71,7 @@ export async function getTaskPreviewMeta(
         columnTitle: columnsTable.title,
         boardName: boardsTable.name,
         boardKey: boardsTable.key,
+        allowLinkPreview: boardsTable.allowLinkPreview,
       })
       .from(tasksTable)
       .innerJoin(boardsTable, eq(tasksTable.boardId, boardsTable.id))
@@ -88,6 +89,18 @@ export async function getTaskPreviewMeta(
     const boardKey = (row.boardKey || "BOARD").toUpperCase();
     const assignedTaskNumber = row.taskNumber ?? row.id;
     const taskKey = `${boardKey}-${assignedTaskNumber}`;
+
+    // If link preview is disabled for this board, return protected metadata
+    if (!row.allowLinkPreview) {
+      return {
+        title: `[${taskKey}] Protected Task | Kanban Task Board`,
+        description: `Sign in to Kanban Task Board to view this task. Public link previews are disabled for this board.`,
+        taskKey,
+        taskTitle: "Protected Task",
+        boardName: row.boardName,
+      };
+    }
+
     const pageTitle = `[${taskKey}] ${row.title}`;
 
     // Contextual description metadata
@@ -131,12 +144,22 @@ export async function getBoardPreviewMeta(boardId: number) {
         id: boardsTable.id,
         name: boardsTable.name,
         key: boardsTable.key,
+        allowLinkPreview: boardsTable.allowLinkPreview,
       })
       .from(boardsTable)
       .where(eq(boardsTable.id, boardId))
       .limit(1);
 
     if (!board) return null;
+
+    if (!board.allowLinkPreview) {
+      return {
+        title: `${board.name} | Kanban Task Board`,
+        description: `Sign in to Kanban Task Board to access this board. Public link previews are disabled for this board.`,
+        boardName: board.name,
+        boardKey: board.key,
+      };
+    }
 
     const title = `${board.name} | Kanban Task Board`;
     const description = `Kanban board: ${board.name}. Collaborative task tracking, swimlanes, and workflow management.`;
