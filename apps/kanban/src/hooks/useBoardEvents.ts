@@ -11,6 +11,13 @@ import { useMe } from "./useAuth";
 
 export type BoardConnectionStatus = "connecting" | "connected" | "disconnected";
 
+export interface PresenceUser {
+  id: number;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+}
+
 export interface BoardEvent {
   type: "tasks:changed" | "columns:changed" | "board:updated" | "board:deleted" | "members:changed";
   boardId: number;
@@ -51,7 +58,9 @@ export function useBoardEvents({
 
   const [status, setStatus] = useState<BoardConnectionStatus>("connecting");
   const [lastEventTime, setLastEventTime] = useState<Date | null>(null);
+  const [activeUsers, setActiveUsers] = useState<PresenceUser[]>([]);
 
+  const socketRef = useRef<WebSocket | null>(null);
   const hasBufferedEventRef = useRef(false);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isInteractingRef = useRef(isInteracting);
@@ -59,6 +68,9 @@ export function useBoardEvents({
 
   const onRemoteEventRef = useRef(onRemoteEvent);
   onRemoteEventRef.current = onRemoteEvent;
+
+  const meRef = useRef(me);
+  meRef.current = me;
 
   const meIdRef = useRef(me?.id);
   meIdRef.current = me?.id;
@@ -92,9 +104,28 @@ export function useBoardEvents({
     }
   }, [isInteracting, boardId, triggerInvalidation]);
 
+  // Identify with WebSocket if user session finishes loading while connected
+  useEffect(() => {
+    if (socketRef.current?.readyState === WebSocket.OPEN && me && boardId) {
+      socketRef.current.send(
+        JSON.stringify({
+          type: "identify",
+          boardId,
+          user: {
+            id: me.id,
+            firstName: me.firstName,
+            lastName: me.lastName,
+            email: me.email,
+          },
+        }),
+      );
+    }
+  }, [me, boardId]);
+
   useEffect(() => {
     if (!boardId || typeof WebSocket === "undefined") {
       setStatus("disconnected");
+      setActiveUsers([]);
       return;
     }
 
@@ -109,10 +140,23 @@ export function useBoardEvents({
       try {
         const wsUrl = getWebSocketUrl();
         socket = new WebSocket(wsUrl);
+        socketRef.current = socket;
 
         socket.onopen = () => {
           if (isDisposed) return;
-          socket?.send(JSON.stringify({ type: "subscribe", boardId }));
+          const subscribePayload = {
+            type: "subscribe",
+            boardId,
+            user: meRef.current
+              ? {
+                  id: meRef.current.id,
+                  firstName: meRef.current.firstName,
+                  lastName: meRef.current.lastName,
+                  email: meRef.current.email,
+                }
+              : undefined,
+          };
+          socket?.send(JSON.stringify(subscribePayload));
           setStatus("connected");
         };
 
@@ -123,6 +167,13 @@ export function useBoardEvents({
 
             if (data.type === "connected") {
               setStatus("connected");
+              return;
+            }
+
+            if (data.type === "presence") {
+              if (data.boardId === boardId && Array.isArray(data.users)) {
+                setActiveUsers(data.users);
+              }
               return;
             }
 
@@ -175,12 +226,21 @@ export function useBoardEvents({
       isDisposed = true;
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
       if (socket) {
+        if (socket.readyState === WebSocket.OPEN) {
+          try {
+            socket.send(JSON.stringify({ type: "unsubscribe", boardId }));
+          } catch {
+            // Ignore if socket already closed
+          }
+        }
         socket.onopen = null;
         socket.onmessage = null;
         socket.onerror = null;
         socket.onclose = null;
         socket.close();
       }
+      socketRef.current = null;
+      setActiveUsers([]);
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
@@ -191,5 +251,6 @@ export function useBoardEvents({
     status,
     lastEventTime,
     isConnected: status === "connected",
+    activeUsers,
   };
 }

@@ -58,7 +58,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { userDisplayName, userInitials } from "@/hooks/useAuth";
+import { useMe, userDisplayName, userInitials } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 
@@ -73,6 +73,7 @@ export default function BoardPage() {
     query: { queryKey: getGetBoardTeamQueryKey(boardId) },
   });
 
+  const { data: me } = useMe();
   const qc = useQueryClient();
   const { toast } = useToast();
   const updateTask = useUpdateTask();
@@ -89,15 +90,39 @@ export default function BoardPage() {
   const [defaultColumnId, setDefaultColumnId] = useState<number | undefined>();
   const lastOverId = useRef<string | number | null>(null);
 
-
-
-  // Real-time synchronization via Server-Sent Events (SSE)
+  // Real-time synchronization via WebSocket
   // Incoming remote updates are buffered while the user is actively dragging or has modals open
   const isInteracting = activeTask !== null || taskDialogOpen || addColumnOpen || settingsOpen;
-  const { isConnected } = useBoardEvents({
+  const { isConnected, activeUsers } = useBoardEvents({
     boardId,
     isInteracting,
   });
+
+  // Calculate users currently active/live on this board UI
+  const liveMembers = useMemo(() => {
+    return activeUsers.map((u) => {
+      const teamMember = boardTeam?.members.find((m) => m.userId === u.id);
+      const memberObj = {
+        id: u.id,
+        firstName: u.firstName || teamMember?.firstName || "",
+        lastName: u.lastName || teamMember?.lastName || "",
+        email: u.email || teamMember?.email || "",
+      };
+      return {
+        ...memberObj,
+        displayName: userDisplayName(memberObj),
+      };
+    });
+  }, [activeUsers, boardTeam?.members]);
+
+  // Sort live members so current user is first, then alphabetical by display name
+  const sortedLiveMembers = useMemo(() => {
+    return [...liveMembers].sort((a, b) => {
+      if (a.id === me?.id) return -1;
+      if (b.id === me?.id) return 1;
+      return a.displayName.localeCompare(b.displayName);
+    });
+  }, [liveMembers, me?.id]);
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -506,25 +531,73 @@ export default function BoardPage() {
               </p>
             </div>
 
-            {/* Team Members Avatar Stack */}
-            {boardTeam && boardTeam.members.length > 0 && (
-              <div className="hidden sm:flex items-center -space-x-2 ml-2 pl-3 border-l border-border/60">
-                {boardTeam.members.slice(0, 5).map((m) => (
-                  <Tooltip key={m.userId}>
+            {/* Live Active Members Avatar Stack */}
+            {sortedLiveMembers.length > 0 && (
+              <div
+                className="hidden sm:flex items-center -space-x-2 ml-2 pl-3 border-l border-border/60"
+                aria-label="Active users on this board"
+              >
+                {sortedLiveMembers.slice(0, 5).map((m) => {
+                  const isMe = m.id === me?.id;
+                  return (
+                    <Tooltip key={m.id}>
+                      <TooltipTrigger asChild>
+                        <div
+                          className="relative group cursor-pointer"
+                          data-testid={`presence-avatar-${m.id}`}
+                        >
+                          <div
+                            className={cn(
+                              "w-7 h-7 rounded-full border-2 border-background flex items-center justify-center text-[10px] font-bold shadow-2xs hover:scale-110 hover:z-20 transition-transform select-none",
+                              isMe
+                                ? "bg-primary/15 text-primary ring-1 ring-primary/30"
+                                : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500/30"
+                            )}
+                          >
+                            {userInitials(m)}
+                          </div>
+                          {/* Live presence indicator dot */}
+                          <span
+                            className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-background rounded-full ring-1 ring-emerald-600/30"
+                            title="Active now"
+                          />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="text-xs">
+                        <div className="font-semibold flex items-center gap-1.5">
+                          <span>{m.displayName}</span>
+                          {isMe && (
+                            <span className="text-[10px] text-muted-foreground font-normal">
+                              (You)
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1 mt-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          <span>Active now on this board</span>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })}
+                {sortedLiveMembers.length > 5 && (
+                  <Tooltip>
                     <TooltipTrigger asChild>
-                      <div className="w-7 h-7 rounded-full bg-primary/15 text-primary border-2 border-background flex items-center justify-center text-[10px] font-bold shadow-2xs hover:scale-110 hover:z-10 transition-transform">
-                        {userInitials(m)}
+                      <div className="w-7 h-7 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[10px] font-bold text-muted-foreground shadow-2xs cursor-default">
+                        +{sortedLiveMembers.length - 5}
                       </div>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      <span>{userDisplayName(m)}</span>
+                    <TooltipContent side="bottom" className="text-xs">
+                      <p className="font-medium">
+                        +{sortedLiveMembers.length - 5} more active teammates
+                      </p>
+                      <ul className="text-[11px] text-muted-foreground mt-1 space-y-0.5">
+                        {sortedLiveMembers.slice(5).map((m) => (
+                          <li key={m.id}>{m.displayName}</li>
+                        ))}
+                      </ul>
                     </TooltipContent>
                   </Tooltip>
-                ))}
-                {boardTeam.members.length > 5 && (
-                  <div className="w-7 h-7 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[10px] font-bold text-muted-foreground shadow-2xs">
-                    +{boardTeam.members.length - 5}
-                  </div>
                 )}
               </div>
             )}

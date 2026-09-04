@@ -20,12 +20,14 @@ Provides the core Kanban board experience: creating and customizing boards, mana
 | `apps/kanban/src/components/TaskCommentsTab.tsx` | Jira-style task comments thread with add, inline edit, delete, and author metadata |
 | `apps/kanban/src/components/TaskHistoryTab.tsx` | Visual task audit timeline tracking description, attachment, comment, assignee, date, and status changes |
 | `apps/kanban/src/components/RichTextEditor.tsx` | TipTap-based WYSIWYG rich text editor supporting inline formatting, screenshot clipboard pasting, drag-and-drop, S/M/L image sizing, and corner resizing |
+| `apps/kanban/src/hooks/useBoardEvents.ts` | Client WebSocket hook managing board subscription, remote event invalidation, and real-time active user presence |
 | `apps/kanban/src/lib/dnd.ts` | DnD helper calculations for column/task identifier parsing and target insertion |
 | `apps/api-server/src/routes/boards.ts` | Board CRUD and team linking endpoints |
 | `apps/api-server/src/routes/columns.ts` | Column CRUD and default column creation |
 | `apps/api-server/src/routes/tasks.ts` | Task CRUD, stats endpoint, and positional move reordering |
 | `apps/api-server/src/routes/attachments.ts` | Attachment upload (Multer with configurable max size), list, download, and delete |
 | `apps/api-server/src/routes/comments.ts` | Comment CRUD endpoints with author authorization |
+| `apps/api-server/src/lib/boardEvents.ts` | WebSocket server managing board channels, ping intervals, event broadcast, and user presence deduplication |
 | `apps/api-server/src/lib/taskActivity.ts` | Task change audit event logging utility |
 | `apps/api-server/src/lib/taskOrder.ts` | Positional indexing logic for calculating target positions |
 
@@ -154,4 +156,24 @@ Existing tasks in the task modal feature two tabs at the bottom: **Comments** an
   - File attachments (`Attached file ...` / `Removed attachment ...`)
   - Comments (`Added a comment`, `Edited a comment`, `Deleted a comment`)
 - **Timeline UI**: Vertical feed with contextual icons for each event type, actor initials, actor name, old/new value comparison pills, and timestamps.
+
+---
+
+## Real-Time User Presence (WebSocket)
+
+Next to the board title in the board header, active teammate presence is tracked and rendered in real time via WebSocket:
+
+- **Live-Only Avatars**: Instead of showing all team members statically, only users currently active on the board UI have their initials circle rendered in the header.
+- **WebSocket Protocol**:
+  - `subscribe`: When a client loads a board, it transmits `{ type: "subscribe", boardId, user }`.
+  - `identify`: Re-transmits identity if auth session finishes loading after connection establishment.
+  - `unsubscribe`: Sent when navigating away or unmounting before socket closure.
+  - `presence`: The server broadcasts `{ type: "presence", boardId, users: PresenceUser[] }` to all clients on that board whenever any user joins, switches boards, or disconnects.
+- **Tab Deduplication**: If a user opens multiple browser tabs to the same board, they are deduplicated by `userId` on the server so they only appear once in the presence stack.
+- **Visual Design**:
+  - Initials circle with hover zoom effect and ring accents (`primary` for current user `(You)`, `emerald` for active teammates).
+  - Pulsing emerald live indicator badge (`w-2.5 h-2.5 bg-emerald-500 rounded-full`).
+  - Interactive tooltip displaying full name, `(You)` indicator, and `"Active now on this board"`.
+  - Overflow indicator (`+N`) for boards with more than 5 concurrent active users with a full list in tooltip.
+
 
