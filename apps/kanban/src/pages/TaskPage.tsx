@@ -127,6 +127,8 @@ export default function TaskPage() {
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
 
+  const isLoading = isBoardsLoading || isColumnsLoading || isTasksLoading;
+
   const currentBoard = useMemo(() => {
     return boards.find((b) => b.id === boardId);
   }, [boards, boardId]);
@@ -154,6 +156,56 @@ export default function TaskPage() {
       setHasDescChanged(false);
     }
   }, [currentTask?.id, currentTask?.title, currentTask?.description]);
+
+  const displayTaskKey = useMemo(() => {
+    if (currentTask?.taskKey) return currentTask.taskKey;
+    if (currentBoard?.key && currentTask) {
+      return `${currentBoard.key}-${currentTask.taskNumber ?? currentTask.id}`;
+    }
+    return routeTaskKey ?? "";
+  }, [currentTask, currentBoard?.key, routeTaskKey]);
+
+  // Set browser tab title: [<board key>-<task number>] title ...
+  useEffect(() => {
+    if (currentTask) {
+      const pageTitle = displayTaskKey
+        ? `[${displayTaskKey}] ${currentTask.title}`
+        : currentTask.title;
+      document.title = pageTitle;
+
+      // Update client DOM meta tags for client-side navigation
+      const setMeta = (attr: "name" | "property", key: string, content: string) => {
+        let el = document.querySelector(`meta[${attr}="${key}"]`);
+        if (!el) {
+          el = document.createElement("meta");
+          el.setAttribute(attr, key);
+          document.head.appendChild(el);
+        }
+        el.setAttribute("content", content);
+      };
+
+      setMeta("property", "og:title", pageTitle);
+      setMeta("name", "twitter:title", pageTitle);
+
+      const rawDesc = currentTask.description
+        ? currentTask.description.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim()
+        : "";
+      const cleanDesc = rawDesc.length > 160 ? `${rawDesc.slice(0, 157)}...` : rawDesc;
+      if (cleanDesc) {
+        setMeta("name", "description", cleanDesc);
+        setMeta("property", "og:description", cleanDesc);
+        setMeta("name", "twitter:description", cleanDesc);
+      }
+    } else if (routeTaskKey && isLoading) {
+      document.title = `[${routeTaskKey}] Loading task...`;
+    } else if (routeTaskKey && !isLoading && !currentTask) {
+      document.title = "Task Not Found | Kanban Board";
+    }
+
+    return () => {
+      document.title = "Kanban Board";
+    };
+  }, [currentTask, displayTaskKey, routeTaskKey, isLoading]);
 
   // Prepare mention members for description editor
   const teamMembers = useMemo(() => {
@@ -324,8 +376,6 @@ export default function TaskPage() {
     toast({ title: "Task link copied to clipboard" });
     setTimeout(() => setCopied(false), 2000);
   }
-
-  const isLoading = isBoardsLoading || isColumnsLoading || isTasksLoading;
 
   if (isLoading) {
     return (

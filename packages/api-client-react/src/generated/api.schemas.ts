@@ -306,6 +306,17 @@ export interface NotificationUpdateInput {
   isRead?: boolean;
 }
 
+export interface TaskPreviewMeta {
+  title: string;
+  description: string;
+  taskKey: string;
+  taskTitle: string;
+  boardName: string;
+  columnTitle?: string;
+  priority?: string;
+  imageUrl?: string;
+}
+
 export type ListColumnsParams = {
   boardId: number;
 };
@@ -329,4 +340,9 @@ export type ListNotificationsParams = {
 
 export type MarkAllNotificationsRead200 = {
   success?: boolean;
+};
+
+export type GetTaskPreviewParams = {
+  boardId: number;
+  taskKey: string;
 };

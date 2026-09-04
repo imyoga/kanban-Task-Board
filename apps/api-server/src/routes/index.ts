@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
 import authRouter from "./auth";
+import metaRouter from "./meta";
 import boardsRouter from "./boards";
 import columnsRouter from "./columns";
 import tasksRouter from "./tasks";
@@ -14,6 +15,7 @@ const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
+router.use(metaRouter);
 
 // All routes below require authentication
 router.use(requireAuth);

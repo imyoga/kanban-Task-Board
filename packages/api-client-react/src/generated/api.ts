@@ -27,6 +27,7 @@ import type {
   Column,
   ColumnInput,
   ColumnUpdate,
+  GetTaskPreviewParams,
   GetTaskStatsParams,
   HealthStatus,
   ListColumnsParams,
@@ -41,6 +42,7 @@ import type {
   TaskComment,
   TaskCommentInput,
   TaskInput,
+  TaskPreviewMeta,
   TaskStats,
   TaskUpdate,
   Team,
@@ -3666,3 +3668,97 @@ export const useUpdateNotificationReadStatus = <
 > => {
   return useMutation(getUpdateNotificationReadStatusMutationOptions(options));
 };
+
+/**
+ * @summary Get public preview metadata for a task
+ */
+export const getGetTaskPreviewUrl = (params: GetTaskPreviewParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/meta/task-preview?${stringifiedParams}`
+    : `/api/meta/task-preview`;
+};
+
+export const getTaskPreview = async (
+  params: GetTaskPreviewParams,
+  options?: RequestInit,
+): Promise<TaskPreviewMeta> => {
+  return customFetch<TaskPreviewMeta>(getGetTaskPreviewUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetTaskPreviewQueryKey = (params?: GetTaskPreviewParams) => {
+  return [`/api/meta/task-preview`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetTaskPreviewQueryOptions = <
+  TData = Awaited<ReturnType<typeof getTaskPreview>>,
+  TError = ErrorType<void>,
+>(
+  params: GetTaskPreviewParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getTaskPreview>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetTaskPreviewQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getTaskPreview>>> = ({
+    signal,
+  }) => getTaskPreview(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getTaskPreview>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetTaskPreviewQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getTaskPreview>>
+>;
+export type GetTaskPreviewQueryError = ErrorType<void>;
+
+/**
+ * @summary Get public preview metadata for a task
+ */
+
+export function useGetTaskPreview<
+  TData = Awaited<ReturnType<typeof getTaskPreview>>,
+  TError = ErrorType<void>,
+>(
+  params: GetTaskPreviewParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getTaskPreview>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetTaskPreviewQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}

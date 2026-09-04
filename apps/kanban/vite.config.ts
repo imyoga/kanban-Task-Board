@@ -33,7 +33,67 @@ export default defineConfig(({ mode }) => {
       __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
       __COMMIT_HASH__: JSON.stringify(commitHash),
     },
-    plugins: [react(), tailwindcss()],
+    plugins: [
+      react(),
+      tailwindcss(),
+      {
+        name: "task-meta-preview",
+        apply: "serve",
+        transformIndexHtml: {
+          order: "post" as const,
+          async handler(html: string, ctx: { originalUrl?: string; req?: { headers?: { host?: string } } }) {
+            const url = ctx.originalUrl || "";
+            const match = url.match(/^\/boards\/(\d+)\/([^/?#]+)/);
+            if (!match) return html;
+
+            const boardId = match[1];
+            const taskKey = match[2];
+            if (taskKey === "stats") return html;
+
+            try {
+              const res = await fetch(
+                `http://127.0.0.1:${apiPort}/api/v1/meta/task-preview?boardId=${boardId}&taskKey=${encodeURIComponent(taskKey)}`
+              );
+              if (!res.ok) return html;
+              const meta = (await res.json()) as { title?: string; description?: string };
+              if (!meta || !meta.title) return html;
+
+              const host = ctx.req?.headers?.host || `localhost:${frontendPort}`;
+              const fullUrl = `http://${host}${url}`;
+              const imageUrl = `http://${host}/opengraph.jpg`;
+
+              html = html.replace(/<title>.*?<\/title>/i, `<title>${meta.title}</title>`);
+
+              const setMeta = (attr: string, key: string, content: string) => {
+                const pattern = new RegExp(`<meta\\s+[^>]*${attr}=["']${key}["'][^>]*>`, "i");
+                const tag = `<meta ${attr}="${key}" content="${content.replace(/"/g, "&quot;")}" />`;
+                if (pattern.test(html)) {
+                  html = html.replace(pattern, tag);
+                } else {
+                  html = html.replace("</head>", `  ${tag}\n</head>`);
+                }
+              };
+
+              setMeta("name", "description", meta.description || "Kanban Task Board");
+              setMeta("property", "og:title", meta.title);
+              setMeta("property", "og:description", meta.description || "Kanban Task Board");
+              setMeta("property", "og:url", fullUrl);
+              setMeta("property", "og:site_name", "Kanban Task Board");
+              setMeta("property", "og:type", "website");
+              setMeta("property", "og:image", imageUrl);
+              setMeta("name", "twitter:title", meta.title);
+              setMeta("name", "twitter:description", meta.description || "Kanban Task Board");
+              setMeta("name", "twitter:image", imageUrl);
+              setMeta("name", "twitter:card", "summary_large_image");
+
+              return html;
+            } catch {
+              return html;
+            }
+          },
+        },
+      },
+    ],
     resolve: {
       alias: {
         "@": path.resolve(import.meta.dirname, "src"),

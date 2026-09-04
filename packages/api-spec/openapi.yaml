@@ -955,6 +955,32 @@ paths:
         "404":
           description: Notification not found
 
+  /meta/task-preview:
+    get:
+      operationId: getTaskPreview
+      tags: [tasks]
+      summary: Get public preview metadata for a task
+      parameters:
+        - name: boardId
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: taskKey
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Task preview metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskPreviewMeta"
+        "404":
+          description: Task or board not found
+
 components:
   schemas:
     HealthStatus:
@@ -1447,4 +1473,25 @@ components:
       properties:
         isRead:
           type: boolean
+
+    TaskPreviewMeta:
+      type: object
+      required: [title, description, taskKey, taskTitle, boardName]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        taskKey:
+          type: string
+        taskTitle:
+          type: string
+        boardName:
+          type: string
+        columnTitle:
+          type: string
+        priority:
+          type: string
+        imageUrl:
+          type: string
 

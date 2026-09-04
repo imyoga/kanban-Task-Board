@@ -690,3 +690,22 @@ export const UpdateNotificationReadStatusResponse = zod.object({
   isRead: zod.boolean(),
   createdAt: zod.string(),
 });
+
+/**
+ * @summary Get public preview metadata for a task
+ */
+export const GetTaskPreviewQueryParams = zod.object({
+  boardId: zod.coerce.number(),
+  taskKey: zod.coerce.string(),
+});
+
+export const GetTaskPreviewResponse = zod.object({
+  title: zod.string(),
+  description: zod.string(),
+  taskKey: zod.string(),
+  taskTitle: zod.string(),
+  boardName: zod.string(),
+  columnTitle: zod.string().optional(),
+  priority: zod.string().optional(),
+  imageUrl: zod.string().optional(),
+});
