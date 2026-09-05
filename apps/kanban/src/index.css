@@ -150,6 +150,31 @@
   }
 }
 
+/* ── Mobile / Touch scroll improvements ── */
+/* Native-feeling horizontal swipe scroll on touch devices */
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+  overscroll-behavior-x: contain;
+}
+
+/* Prevent text selection during drag */
+[data-dnd-dragging] {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Hide scrollbar on mobile column list while keeping scroll functional */
+@media (max-width: 639px) {
+  .overflow-x-auto {
+    scrollbar-width: none;
+  }
+  .overflow-x-auto::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+
 /* Rich Text Editor & ProseMirror Word Wrapping */
 .ProseMirror {
   overflow-wrap: anywhere;

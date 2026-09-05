@@ -3,6 +3,7 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
+  TouchSensor,
   closestCorners,
   pointerWithin,
   rectIntersection,
@@ -44,6 +45,7 @@ import {
   Search,
   Users,
   X,
+  SlidersHorizontal,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -88,6 +90,7 @@ export default function BoardPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [defaultColumnId, setDefaultColumnId] = useState<number | undefined>();
+  const [filtersVisible, setFiltersVisible] = useState(false);
   const lastOverId = useRef<string | number | null>(null);
 
   // Real-time synchronization via WebSocket
@@ -171,7 +174,8 @@ export default function BoardPage() {
     searchQuery.trim() !== "" || priorityFilter !== "all" || assigneeFilter !== "all";
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } })
   );
 
   const collisionDetectionStrategy: CollisionDetection = useCallback(
@@ -471,13 +475,14 @@ export default function BoardPage() {
   return (
     <>
       {/* Board Header Bar */}
-      <div className="border-b border-border/80 bg-background/95 backdrop-blur-sm px-6 py-3.5 space-y-3 shrink-0">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="border-b border-border/80 bg-background/95 backdrop-blur-sm px-3 sm:px-6 py-2.5 sm:py-3.5 space-y-2 sm:space-y-3 shrink-0">
+        {/* ── Top row: title + actions ── */}
+        <div className="flex items-center justify-between gap-2 sm:gap-4">
           {/* Board Title & Team Info */}
-          <div className="flex items-center gap-3 min-w-0">
-            <div>
-              <div className="flex items-center gap-2.5">
-                <h2 className="text-xl font-bold text-foreground tracking-tight truncate">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2.5 flex-wrap">
+                <h2 className="text-base sm:text-xl font-bold text-foreground tracking-tight truncate">
                   {board?.name ?? "Board"}
                 </h2>
                 {boardTeam ? (
@@ -514,7 +519,7 @@ export default function BoardPage() {
                           isConnected ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
                         )}
                       />
-                      <span>{isConnected ? "Live" : "Connecting..."}</span>
+                      <span className="hidden xs:inline">{isConnected ? "Live" : "Connecting..."}</span>
                     </div>
                   </TooltipTrigger>
                   <TooltipContent side="bottom" className="text-xs">
@@ -524,14 +529,14 @@ export default function BoardPage() {
                   </TooltipContent>
                 </Tooltip>
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
+              <p className="text-xs text-muted-foreground mt-0.5 hidden sm:block">
                 {filteredTasks.length} {filteredTasks.length === 1 ? "task" : "tasks"}
                 {hasActiveFilters && ` (filtered from ${tasks.length})`} across{" "}
                 {displayColumns.length} columns
               </p>
             </div>
 
-            {/* Live Active Members Avatar Stack */}
+            {/* Live Active Members Avatar Stack — hidden on mobile */}
             {sortedLiveMembers.length > 0 && (
               <div
                 className="hidden sm:flex items-center -space-x-2 ml-2 pl-3 border-l border-border/60"
@@ -604,27 +609,48 @@ export default function BoardPage() {
           </div>
 
           {/* Action buttons */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Mobile filter toggle */}
+            <button
+              type="button"
+              onClick={() => setFiltersVisible(v => !v)}
+              className={cn(
+                "sm:hidden flex items-center gap-1 px-2 h-8 border rounded-lg text-xs font-medium transition-colors shadow-2xs",
+                filtersVisible || hasActiveFilters
+                  ? "border-primary/50 text-primary bg-primary/5"
+                  : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/80"
+              )}
+              aria-label="Toggle filters"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              {hasActiveFilters && (
+                <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+              )}
+            </button>
+
             {board?.isOwner && (
               <button
                 onClick={() => setSettingsOpen(true)}
-                className="flex items-center gap-1.5 px-3 h-8 border border-border text-xs font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/80 transition-colors shadow-2xs"
+                className="flex items-center gap-1.5 px-2 sm:px-3 h-8 border border-border text-xs font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/80 transition-colors shadow-2xs"
                 aria-label="Board settings"
                 title="Board settings & team linking"
               >
                 <Settings className="w-3.5 h-3.5" />
-                <span>Settings</span>
+                <span className="hidden sm:inline">Settings</span>
               </button>
             )}
 
-            <NotificationBell />
+            <NotificationBell className="hidden sm:flex" />
           </div>
         </div>
 
-        {/* Filter / Search Bar */}
-        <div className="flex items-center gap-2.5 flex-wrap pt-1">
+        {/* Filter / Search Bar — always visible on sm+, toggleable on mobile */}
+        <div className={cn(
+          "flex items-center gap-2.5 flex-wrap pt-1",
+          !filtersVisible && "hidden sm:flex"
+        )}>
           {/* Search box */}
-          <div className="relative flex-1 min-w-[200px] max-w-xs">
+          <div className="relative flex-1 min-w-[160px] max-w-xs">
             <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={searchQuery}
@@ -706,7 +732,7 @@ export default function BoardPage() {
               className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-destructive transition-colors px-2 py-1"
             >
               <X className="w-3 h-3" />
-              Reset filters
+              Reset
             </button>
           )}
         </div>

@@ -233,7 +233,7 @@ function KanbanColumn({ column, boardId, tasks, onAddTask, onEditTask, onDeleteT
       </div>
 
       {/* Tasks container */}
-      <div className="flex-1 px-2.5 pb-2.5 overflow-y-auto max-h-[calc(100vh-210px)] min-h-[140px] space-y-2">
+      <div className="flex-1 px-2.5 pb-2.5 overflow-y-auto max-h-[calc(100svh-260px)] sm:max-h-[calc(100vh-210px)] min-h-[140px] space-y-2">
         <SortableContext items={tasks.map((t) => taskDndId(t.id))} strategy={verticalListSortingStrategy}>
           <div className="space-y-2.5">
             {tasks.map((task) => (
