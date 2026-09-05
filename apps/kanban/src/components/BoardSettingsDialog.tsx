@@ -160,17 +160,17 @@ export default function BoardSettingsDialog({ board, open, onOpenChange, onDelet
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="sm:max-w-md p-6"
+        className="w-[95vw] sm:max-w-md p-4 sm:p-6 max-h-[90vh] flex flex-col overflow-hidden"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <DialogHeader className="pb-2 border-b border-border/50">
-          <DialogTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <Settings className="w-5 h-5 text-primary" />
+        <DialogHeader className="pb-2 border-b border-border/50 shrink-0">
+          <DialogTitle className="text-base sm:text-lg font-semibold text-foreground flex items-center gap-2">
+            <Settings className="w-5 h-5 text-primary shrink-0" />
             Board Settings
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 pt-2">
+        <div className="space-y-5 pt-3 overflow-y-auto pr-1 flex-1">
           {/* Board Details form */}
           <form onSubmit={handleSaveDetails} className="space-y-3.5">
             <div className="space-y-1.5">
@@ -187,7 +187,7 @@ export default function BoardSettingsDialog({ board, open, onOpenChange, onDelet
             </div>
 
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-1">
                 <Label htmlFor="board-key" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Board Key / ID
                 </Label>
@@ -205,15 +205,15 @@ export default function BoardSettingsDialog({ board, open, onOpenChange, onDelet
                 required
               />
               <p className="text-[11px] text-muted-foreground leading-tight">
-                Used in task URLs like <span className="font-mono text-foreground font-semibold">/boards/{board.id}/{key || "BOARD"}-5945</span>.
+                Used in task URLs like <span className="font-mono text-foreground font-semibold break-all">/boards/{board.id}/{key || "BOARD"}-5945</span>.
               </p>
             </div>
 
             {/* Public Link Previews Toggle */}
             <div className="pt-3 pb-1 border-t border-border/50 space-y-2">
-              <div className="flex items-center justify-between gap-4">
-                <div className="space-y-0.5 min-w-0">
-                  <div className="flex items-center gap-2">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1 min-w-0 flex-1">
+                  <div className="flex items-center flex-wrap gap-1.5">
                     <Label
                       htmlFor="allow-link-preview"
                       className="text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer"
@@ -238,6 +238,7 @@ export default function BoardSettingsDialog({ board, open, onOpenChange, onDelet
                   id="allow-link-preview"
                   checked={allowLinkPreview}
                   onCheckedChange={setAllowLinkPreview}
+                  className="mt-0.5 shrink-0"
                 />
               </div>
             </div>
@@ -253,7 +254,7 @@ export default function BoardSettingsDialog({ board, open, onOpenChange, onDelet
                     allowLinkPreview === (board.allowLinkPreview ?? false)) ||
                   updateBoard.isPending
                 }
-                className="h-9 px-4 font-medium"
+                className="w-full sm:w-auto h-9 px-4 font-medium"
               >
                 {updateBoard.isPending ? "Saving..." : "Save Details"}
               </Button>
@@ -264,7 +265,7 @@ export default function BoardSettingsDialog({ board, open, onOpenChange, onDelet
           {board.isOwner && (
             <div className="space-y-3 pt-4 border-t border-border/60">
               <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-primary" />
+                <Users className="w-4 h-4 text-primary shrink-0" />
                 <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Associated Team
                 </Label>
@@ -275,7 +276,7 @@ export default function BoardSettingsDialog({ board, open, onOpenChange, onDelet
                 onValueChange={handleTeamChange}
                 disabled={updateTeam.isPending}
               >
-                <SelectTrigger className="h-10">
+                <SelectTrigger className="h-10 w-full">
                   <SelectValue placeholder="No team associated" />
                 </SelectTrigger>
                 <SelectContent>
@@ -300,12 +301,12 @@ export default function BoardSettingsDialog({ board, open, onOpenChange, onDelet
                     {boardTeam.members.map((member) => (
                       <div
                         key={member.userId}
-                        className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-background border border-border/60 text-xs font-medium text-foreground shadow-2xs"
+                        className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-background border border-border/60 text-xs font-medium text-foreground shadow-2xs max-w-full truncate"
                       >
-                        <div className="w-4 h-4 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[8px] font-bold">
+                        <div className="w-4 h-4 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[8px] font-bold shrink-0">
                           {userInitials(member)}
                         </div>
-                        <span>{userDisplayName(member)}</span>
+                        <span className="truncate">{userDisplayName(member)}</span>
                       </div>
                     ))}
                   </div>
@@ -338,7 +339,7 @@ export default function BoardSettingsDialog({ board, open, onOpenChange, onDelet
                   disabled={deleteBoard.isPending}
                   className="w-full flex items-center justify-center gap-1.5"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-4 h-4 shrink-0" />
                   {deleteBoard.isPending ? "Deleting..." : "Delete Board"}
                 </Button>
               </div>
@@ -346,8 +347,8 @@ export default function BoardSettingsDialog({ board, open, onOpenChange, onDelet
           )}
         </div>
 
-        <DialogFooter className="pt-4 border-t border-border/50">
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="pt-3 border-t border-border/50 shrink-0">
+          <Button type="button" variant="ghost" className="w-full sm:w-auto" onClick={() => onOpenChange(false)}>
             Close
           </Button>
         </DialogFooter>
