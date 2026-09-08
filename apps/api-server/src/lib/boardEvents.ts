@@ -1,6 +1,7 @@
 import type { Server } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
 import { logger } from "./logger";
+import { checkBoardAccess } from "./boardAccess";
 
 export type BoardEventAction = "create" | "update" | "delete" | "move";
 
@@ -81,11 +82,27 @@ export function setupWebSocketServer(server: Server): WebSocketServer {
       client.isAlive = true;
     });
 
-    ws.on("message", (data) => {
+    ws.on("message", async (data) => {
       try {
         const msg = JSON.parse(data.toString());
 
         if (msg.type === "subscribe" && typeof msg.boardId === "number") {
+          const userId = msg.user && typeof msg.user.id === "number" ? msg.user.id : undefined;
+          if (userId) {
+            const access = await checkBoardAccess(msg.boardId, userId);
+            if (!access.hasAccess) {
+              ws.send(
+                JSON.stringify({
+                  type: "error",
+                  error: "Forbidden",
+                  message: "You don't have access to this board.",
+                  boardId: msg.boardId,
+                })
+              );
+              return;
+            }
+          }
+
           // If client switches boards on the same socket, remove from previous set
           if (client.boardId && client.boardId !== msg.boardId) {
             const oldBoardId = client.boardId;
@@ -130,6 +147,19 @@ export function setupWebSocketServer(server: Server): WebSocketServer {
           // Broadcast updated presence list to all clients on this board
           broadcastPresence(msg.boardId);
         } else if (msg.type === "identify" && typeof msg.boardId === "number" && msg.user && typeof msg.user.id === "number") {
+          const access = await checkBoardAccess(msg.boardId, msg.user.id);
+          if (!access.hasAccess) {
+            ws.send(
+              JSON.stringify({
+                type: "error",
+                error: "Forbidden",
+                message: "You don't have access to this board.",
+                boardId: msg.boardId,
+              })
+            );
+            return;
+          }
+
           client.boardId = msg.boardId;
           client.user = {
             id: msg.user.id,

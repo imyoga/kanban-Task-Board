@@ -37,6 +37,7 @@ import TaskCard, { TaskCardPreview } from "@/components/TaskCard";
 import TaskDialog from "@/components/TaskDialog";
 import AddColumnDialog from "@/components/AddColumnDialog";
 import BoardSettingsDialog from "@/components/BoardSettingsDialog";
+import AccessDeniedModal from "@/components/AccessDeniedModal";
 import NotificationBell from "@/components/NotificationBell";
 import {
   Plus,
@@ -67,13 +68,25 @@ import { cn } from "@/lib/utils";
 export default function BoardPage() {
   const boardId = useBoardIdFromRoute()!;
   const [, setLocation] = useLocation();
-  const { data: boards = [] } = useListBoards();
+  const { data: boards = [], isLoading: boardsLoading } = useListBoards();
   const board = boards.find((b) => b.id === boardId);
-  const { data: columns = [], isLoading: colsLoading } = useListColumns({ boardId });
-  const { data: tasks = [], isLoading: tasksLoading } = useListTasks({ boardId });
+  const { data: columns = [], isLoading: colsLoading, error: colsError } = useListColumns({ boardId });
+  const { data: tasks = [], isLoading: tasksLoading, error: tasksError } = useListTasks({ boardId });
   const { data: boardTeam } = useGetBoardTeam(boardId, {
     query: { queryKey: getGetBoardTeamQueryKey(boardId) },
   });
+
+  const isAccessDenied = useMemo(() => {
+    if (!boardsLoading && !board) {
+      return true;
+    }
+    const colsStatus = (colsError as any)?.status || (colsError as any)?.response?.status;
+    const tasksStatus = (tasksError as any)?.status || (tasksError as any)?.response?.status;
+    if (colsStatus === 403 || tasksStatus === 403 || colsStatus === 404 || tasksStatus === 404) {
+      return true;
+    }
+    return false;
+  }, [boardsLoading, board, colsError, tasksError]);
 
   const { data: me } = useMe();
   const qc = useQueryClient();
@@ -99,6 +112,7 @@ export default function BoardPage() {
   const { isConnected, activeUsers } = useBoardEvents({
     boardId,
     isInteracting,
+    enabled: !isAccessDenied,
   });
 
   // Calculate users currently active/live on this board UI
@@ -468,6 +482,15 @@ export default function BoardPage() {
     },
     [deleteTask, qc, toast, boardId]
   );
+
+  if (isAccessDenied) {
+    const fallbackBoard = boards.find((b) => b.id !== boardId);
+    return (
+      <div className="flex-1 flex items-center justify-center min-h-[400px]">
+        <AccessDeniedModal open={true} fallbackBoardId={fallbackBoard?.id} />
+      </div>
+    );
+  }
 
   if (colsLoading || tasksLoading) {
     return (

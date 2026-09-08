@@ -7,12 +7,23 @@ import {
 } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 
-export async function getBoardAccess(boardId: number, userId: number) {
+export type BoardAccessResult = {
+  exists: boolean;
+  hasAccess: boolean;
+  board: typeof boardsTable.$inferSelect | null;
+  isOwner: boolean;
+  canManage: boolean;
+  canEdit: boolean;
+};
+
+export async function checkBoardAccess(boardId: number, userId: number): Promise<BoardAccessResult> {
   const [board] = await db.select().from(boardsTable).where(eq(boardsTable.id, boardId));
-  if (!board) return null;
+  if (!board) {
+    return { exists: false, hasAccess: false, board: null, isOwner: false, canManage: false, canEdit: false };
+  }
 
   if (board.ownerId === userId) {
-    return { board, isOwner: true, canManage: true, canEdit: true };
+    return { exists: true, hasAccess: true, board, isOwner: true, canManage: true, canEdit: true };
   }
 
   const [member] = await db
@@ -21,7 +32,7 @@ export async function getBoardAccess(boardId: number, userId: number) {
     .where(and(eq(boardMembersTable.boardId, boardId), eq(boardMembersTable.userId, userId)));
 
   if (member) {
-    return { board, isOwner: false, canManage: false, canEdit: true };
+    return { exists: true, hasAccess: true, board, isOwner: false, canManage: false, canEdit: true };
   }
 
   const [teamMember] = await db
@@ -31,10 +42,16 @@ export async function getBoardAccess(boardId: number, userId: number) {
     .where(and(eq(teamsTable.boardId, boardId), eq(teamMembersTable.userId, userId)));
 
   if (teamMember) {
-    return { board, isOwner: false, canManage: false, canEdit: true };
+    return { exists: true, hasAccess: true, board, isOwner: false, canManage: false, canEdit: true };
   }
 
-  return null;
+  return { exists: true, hasAccess: false, board, isOwner: false, canManage: false, canEdit: false };
+}
+
+export async function getBoardAccess(boardId: number, userId: number) {
+  const access = await checkBoardAccess(boardId, userId);
+  if (!access.hasAccess || !access.board) return null;
+  return { board: access.board, isOwner: access.isOwner, canManage: access.canManage, canEdit: access.canEdit };
 }
 
 export async function getAccessibleBoardIds(userId: number) {

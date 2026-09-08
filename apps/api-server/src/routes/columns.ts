@@ -7,7 +7,7 @@ import {
   UpdateColumnBody,
   DeleteColumnParams,
 } from "@workspace/api-zod";
-import { getBoardAccess } from "../lib/boardAccess";
+import { checkBoardAccess, getBoardAccess } from "../lib/boardAccess";
 import { normalizeDefaultColumnsForBoard, seedDefaultColumnsForBoard } from "../lib/boards";
 import { broadcastBoardEvent } from "../lib/boardEvents";
 
@@ -22,13 +22,17 @@ router.get("/columns", async (req, res) => {
     return;
   }
 
-  const access = await getBoardAccess(boardId, userId);
-  if (!access) {
+  const access = await checkBoardAccess(boardId, userId);
+  if (!access.exists) {
     res.status(404).json({ error: "Board not found" });
     return;
   }
+  if (!access.hasAccess) {
+    res.status(403).json({ error: "Forbidden", message: "You don't have access to this board. Ask the admin to provide access or add you to their team." });
+    return;
+  }
 
-  await seedDefaultColumnsForBoard(boardId, access.board.ownerId);
+  await seedDefaultColumnsForBoard(boardId, access.board!.ownerId);
   await normalizeDefaultColumnsForBoard(boardId);
 
   const columns = await db

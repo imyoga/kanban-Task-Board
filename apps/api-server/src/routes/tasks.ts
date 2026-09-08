@@ -18,7 +18,7 @@ import {
   DeleteTaskParams,
   ListTaskActivitiesParams,
 } from "@workspace/api-zod";
-import { getBoardAccess, getTeamForBoard } from "../lib/boardAccess";
+import { checkBoardAccess, getBoardAccess, getTeamForBoard } from "../lib/boardAccess";
 import { applyTaskMove } from "../lib/taskOrder";
 import { broadcastBoardEvent } from "../lib/boardEvents";
 import { recordTaskActivity } from "../lib/taskActivity";
@@ -108,9 +108,13 @@ router.get("/tasks/stats", async (req, res) => {
     return;
   }
 
-  const access = await getBoardAccess(boardId, userId);
-  if (!access) {
+  const access = await checkBoardAccess(boardId, userId);
+  if (!access.exists) {
     res.status(404).json({ error: "Board not found" });
+    return;
+  }
+  if (!access.hasAccess) {
+    res.status(403).json({ error: "Forbidden", message: "You don't have access to this board. Ask the admin to provide access or add you to their team." });
     return;
   }
 
@@ -154,9 +158,13 @@ router.get("/tasks", async (req, res) => {
     return;
   }
 
-  const access = await getBoardAccess(boardId, userId);
-  if (!access) {
+  const access = await checkBoardAccess(boardId, userId);
+  if (!access.exists) {
     res.status(404).json({ error: "Board not found" });
+    return;
+  }
+  if (!access.hasAccess) {
+    res.status(403).json({ error: "Forbidden", message: "You don't have access to this board. Ask the admin to provide access or add you to their team." });
     return;
   }
 

@@ -36,6 +36,10 @@ interface UseBoardEventsOptions {
    */
   isInteracting?: boolean;
   /**
+   * If false, socket connection and subscription are disabled.
+   */
+  enabled?: boolean;
+  /**
    * Optional callback when a remote event is received from another user.
    */
   onRemoteEvent?: (event: BoardEvent) => void;
@@ -51,6 +55,7 @@ function getWebSocketUrl(): string {
 export function useBoardEvents({
   boardId,
   isInteracting = false,
+  enabled = true,
   onRemoteEvent,
 }: UseBoardEventsOptions) {
   const { data: me } = useMe();
@@ -123,7 +128,7 @@ export function useBoardEvents({
   }, [me, boardId]);
 
   useEffect(() => {
-    if (!boardId || typeof WebSocket === "undefined") {
+    if (!boardId || !enabled || typeof WebSocket === "undefined") {
       setStatus("disconnected");
       setActiveUsers([]);
       return;
