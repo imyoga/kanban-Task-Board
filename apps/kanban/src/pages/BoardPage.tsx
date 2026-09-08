@@ -180,8 +180,8 @@ export default function BoardPage() {
 
   const collisionDetectionStrategy: CollisionDetection = useCallback(
     (args) => {
-      // 1. First, check for pointer collisions directly under cursor
-      const pointerCollisions = pointerWithin(args);
+      // 1. First, check for pointer collisions directly under cursor (excluding the active item being dragged)
+      const pointerCollisions = pointerWithin(args).filter((c) => c.id !== args.active.id);
 
       if (pointerCollisions.length > 0) {
         // Prioritize task card under pointer over column container background
@@ -206,7 +206,7 @@ export default function BoardPage() {
       }
 
       // 2. Fall back to rectIntersection when dragging across gaps between columns
-      const rectCollisions = rectIntersection(args);
+      const rectCollisions = rectIntersection(args).filter((c) => c.id !== args.active.id);
       const overId = getFirstCollision(rectCollisions, "id");
 
       if (overId != null) {
@@ -215,7 +215,7 @@ export default function BoardPage() {
       }
 
       // 3. Fallback to last valid container ID to prevent thrashing/flickering
-      if (lastOverId.current) {
+      if (lastOverId.current && lastOverId.current !== args.active.id) {
         return [{ id: lastOverId.current }];
       }
 
@@ -244,7 +244,7 @@ export default function BoardPage() {
 
   function handleDragOver(event: DragOverEvent) {
     const { active, over } = event;
-    if (!over) return;
+    if (!over || active.id === over.id) return;
 
     if (getColumnFromDndActive(active.data.current)) return;
 
@@ -256,12 +256,15 @@ export default function BoardPage() {
     if (!activeTaskItem) return;
 
     const overId = String(over.id);
+    if (overId === String(active.id) || overId === `task-${activeTaskId}`) return;
+
     let targetColumnId: number | undefined;
 
     if (overId.startsWith("column-")) {
       targetColumnId = Number(overId.replace("column-", ""));
     } else if (overId.startsWith("task-")) {
       const overTaskId = Number(overId.replace("task-", ""));
+      if (overTaskId === activeTaskId) return;
       const overTask = currentList.find((t) => t.id === overTaskId);
       targetColumnId = overTask?.columnId;
     }
@@ -283,8 +286,10 @@ export default function BoardPage() {
 
         if (overId.startsWith("task-")) {
           const overTaskId = Number(overId.replace("task-", ""));
-          const overIdx = targetColTasks.findIndex((t) => t.id === overTaskId);
-          if (overIdx >= 0) insertIdx = overIdx;
+          if (overTaskId !== activeTaskId) {
+            const overIdx = targetColTasks.findIndex((t) => t.id === overTaskId);
+            if (overIdx >= 0) insertIdx = overIdx;
+          }
         }
 
         return buildReorderedTasks(base, activeTaskId, targetColumnId, insertIdx);
