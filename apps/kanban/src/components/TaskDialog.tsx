@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useCreateTask,
@@ -39,7 +39,7 @@ import { cn } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import TaskCommentsTab from "@/components/TaskCommentsTab";
 import TaskHistoryTab from "@/components/TaskHistoryTab";
-import { Calendar, User, Flag, Layout, X, MessageSquare, History, ExternalLink } from "lucide-react";
+import { Calendar, User, Flag, Layout, X, MessageSquare, History, ExternalLink, Check, Loader2, AlertCircle } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -89,6 +89,12 @@ export default function TaskDialog({
   const [dueDate, setDueDate] = useState("");
   const [assigneeId, setAssigneeId] = useState<string>("none");
   const [activeBottomTab, setActiveBottomTab] = useState<string>("comments");
+  const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+
+  const pendingTitleRef = useRef<string | null>(null);
+  const pendingDescriptionRef = useRef<string | null>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: boardTeam } = useGetBoardTeam(boardId, {
     query: { enabled: open, queryKey: getGetBoardTeamQueryKey(boardId) },
@@ -150,9 +156,155 @@ export default function TaskDialog({
     return list;
   }, [boardMembers, teamMembers]);
 
+  const invalidate = useCallback(() => {
+    qc.invalidateQueries({ queryKey: getListTasksQueryKey({ boardId }) });
+    qc.invalidateQueries({ queryKey: getGetTaskStatsQueryKey({ boardId }) });
+  }, [qc, boardId]);
+
+  // Execute auto-save mutation for editing existing tasks
+  const saveTaskFields = useCallback(
+    async (overrides: {
+      title?: string;
+      description?: string;
+      columnId?: number;
+      priority?: "low" | "medium" | "high";
+      dueDate?: string | null;
+      assigneeId?: number | null;
+    } = {}) => {
+      if (!isEdit || !editTask) return;
+
+      if (savedTimerRef.current) {
+        clearTimeout(savedTimerRef.current);
+        savedTimerRef.current = null;
+      }
+      setAutoSaveStatus("saving");
+
+      const titleToSave = overrides.title !== undefined ? overrides.title : (pendingTitleRef.current ?? title);
+      const rawDescToSave = overrides.description !== undefined ? overrides.description : (pendingDescriptionRef.current ?? description);
+
+      pendingTitleRef.current = null;
+      pendingDescriptionRef.current = null;
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+
+      const cleanedDesc = rawDescToSave ? await optimizeDescriptionImages(rawDescToSave.trim()) : undefined;
+
+      const updatePayload = {
+        title: titleToSave.trim() || editTask.title,
+        description: cleanedDesc || undefined,
+        columnId: overrides.columnId !== undefined ? overrides.columnId : columnId,
+        priority: overrides.priority !== undefined ? overrides.priority : priority,
+        dueDate: overrides.dueDate !== undefined ? (overrides.dueDate || undefined) : (dueDate || undefined),
+        assigneeId: overrides.assigneeId !== undefined
+          ? overrides.assigneeId
+          : (teamMembers.length > 0 ? (assigneeId === "none" ? null : Number(assigneeId)) : undefined),
+      };
+
+      updateTask.mutate(
+        { id: editTask.id, data: updatePayload },
+        {
+          onSuccess: () => {
+            invalidate();
+            setAutoSaveStatus("saved");
+            if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+            savedTimerRef.current = setTimeout(() => {
+              setAutoSaveStatus("idle");
+            }, 2000);
+          },
+          onError: () => {
+            setAutoSaveStatus("error");
+            toast({ title: "Failed to auto-save task", variant: "destructive" });
+          },
+        }
+      );
+    },
+    [isEdit, editTask, title, description, columnId, priority, dueDate, assigneeId, teamMembers.length, updateTask, invalidate, toast]
+  );
+
+  const scheduleDebouncedSave = useCallback(() => {
+    if (savedTimerRef.current) {
+      clearTimeout(savedTimerRef.current);
+      savedTimerRef.current = null;
+    }
+    setAutoSaveStatus("saving");
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => {
+      saveTaskFields();
+    }, 600);
+  }, [saveTaskFields]);
+
+  const flushPendingSave = useCallback(() => {
+    if (debounceTimerRef.current || pendingTitleRef.current !== null || pendingDescriptionRef.current !== null) {
+      saveTaskFields();
+    }
+  }, [saveTaskFields]);
+
+  const handleOpenChange = useCallback((v: boolean) => {
+    if (!v && isEdit) {
+      flushPendingSave();
+    }
+    onOpenChange(v);
+  }, [isEdit, flushPendingSave, onOpenChange]);
+
+  // Field change handlers
+  const handleTitleChange = (newTitle: string) => {
+    setTitle(newTitle);
+    if (isEdit && editTask) {
+      pendingTitleRef.current = newTitle;
+      scheduleDebouncedSave();
+    }
+  };
+
+  const handleDescriptionChange = (newDesc: string) => {
+    setDescription(newDesc);
+    if (isEdit && editTask) {
+      pendingDescriptionRef.current = newDesc;
+      scheduleDebouncedSave();
+    }
+  };
+
+  const handleColumnChange = (newColId: number) => {
+    setColumnId(newColId);
+    if (isEdit && editTask) {
+      saveTaskFields({ columnId: newColId });
+    }
+  };
+
+  const handlePriorityChange = (newPriority: "low" | "medium" | "high") => {
+    setPriority(newPriority);
+    if (isEdit && editTask) {
+      saveTaskFields({ priority: newPriority });
+    }
+  };
+
+  const handleAssigneeChange = (newAssigneeId: string) => {
+    setAssigneeId(newAssigneeId);
+    if (isEdit && editTask) {
+      saveTaskFields({
+        assigneeId: teamMembers.length > 0
+          ? newAssigneeId === "none"
+            ? null
+            : Number(newAssigneeId)
+          : undefined,
+      });
+    }
+  };
+
+  const handleDueDateChange = (newDueDate: string) => {
+    setDueDate(newDueDate);
+    if (isEdit && editTask) {
+      saveTaskFields({ dueDate: newDueDate || null });
+    }
+  };
+
   // Initialize form fields only when dialog opens or the target task changes
   useEffect(() => {
     if (!open) return;
+
+    if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
 
     if (editTask) {
       setTitle(editTask.title);
@@ -162,6 +314,9 @@ export default function TaskDialog({
       setDueDate(editTask.dueDate ?? "");
       setAssigneeId(editTask.assigneeId ? String(editTask.assigneeId) : "none");
       setActiveBottomTab("comments");
+      setAutoSaveStatus("idle");
+      pendingTitleRef.current = null;
+      pendingDescriptionRef.current = null;
       // Refetch comments and history for fresh data
       qc.invalidateQueries({ queryKey: getListTaskCommentsQueryKey(editTask.id) });
       qc.invalidateQueries({ queryKey: getListTaskActivitiesQueryKey(editTask.id) });
@@ -173,6 +328,9 @@ export default function TaskDialog({
       setDueDate("");
       setAssigneeId("none");
       setActiveBottomTab("comments");
+      setAutoSaveStatus("idle");
+      pendingTitleRef.current = null;
+      pendingDescriptionRef.current = null;
     }
   }, [open, editTask?.id]);
 
@@ -182,11 +340,6 @@ export default function TaskDialog({
       setColumnId(defaultColumnId ?? uniqueColumns[0]?.id ?? 0);
     }
   }, [open, editTask, columnId, defaultColumnId, uniqueColumns]);
-
-  function invalidate() {
-    qc.invalidateQueries({ queryKey: getListTasksQueryKey({ boardId }) });
-    qc.invalidateQueries({ queryKey: getGetTaskStatsQueryKey({ boardId }) });
-  }
 
   function handleBottomTabChange(val: string) {
     setActiveBottomTab(val);
@@ -202,6 +355,12 @@ export default function TaskDialog({
     e.preventDefault();
     if (!title.trim()) return;
 
+    if (isEdit && editTask) {
+      // Manual submit flushes auto-save if triggered via Enter
+      flushPendingSave();
+      return;
+    }
+
     const cleanedDescription = await optimizeDescriptionImages(description.trim());
 
     const payload = {
@@ -214,65 +373,74 @@ export default function TaskDialog({
         teamMembers.length > 0 && assigneeId !== "none" ? Number(assigneeId) : undefined,
     };
 
-    if (isEdit && editTask) {
-      const updatePayload = {
-        ...payload,
-        assigneeId: teamMembers.length > 0
-          ? assigneeId === "none"
-            ? null
-            : Number(assigneeId)
-          : undefined,
-      };
-      updateTask.mutate(
-        { id: editTask.id, data: updatePayload },
-        {
-          onSuccess: () => {
-            invalidate();
-            toast({ title: "Task updated" });
-            onOpenChange(false);
-          },
-          onError: () => toast({ title: "Failed to update task", variant: "destructive" }),
-        }
-      );
-    } else {
-      createTask.mutate(
-        { data: { ...payload, boardId } },
-        {
-          onSuccess: () => {
-            invalidate();
-            toast({ title: "Task added" });
-            onOpenChange(false);
-          },
-          onError: () => toast({ title: "Failed to add task", variant: "destructive" }),
-        }
-      );
-    }
+    createTask.mutate(
+      { data: { ...payload, boardId } },
+      {
+        onSuccess: () => {
+          invalidate();
+          toast({ title: "Task added" });
+          onOpenChange(false);
+        },
+        onError: () => toast({ title: "Failed to add task", variant: "destructive" }),
+      }
+    );
   }
 
   const isPending = createTask.isPending || updateTask.isPending;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl w-full max-w-[calc(100vw-2rem)] max-h-[92vh] overflow-y-auto overflow-x-hidden p-6">
-        <DialogHeader className="pb-2 border-b border-border/50 flex flex-row items-center justify-between gap-4">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-2xl w-full max-w-[calc(100vw-2rem)] max-h-[92vh] overflow-y-auto overflow-x-hidden p-6 pt-0">
+        <DialogHeader className="sticky top-0 z-20 pt-6 pb-3 -mx-6 px-6 bg-background/95 backdrop-blur-md border-b border-border/50 flex flex-row items-center justify-between gap-4">
           <DialogTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
             <Layout className="w-5 h-5 text-primary" />
             {isEdit ? "Edit Task" : "Create New Task"}
           </DialogTitle>
-          {isEdit && editTask?.taskKey && (
-            <div className="flex items-center gap-2 mr-6">
-              <a
-                href={`/boards/${boardId}/${editTask.taskKey}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group/key inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border border-border/60 transition-colors shadow-2xs select-none"
-                title="Open task in dedicated tab"
-              >
-                <span>{editTask.taskKey}</span>
-                <ExternalLink className="w-3 h-3 text-muted-foreground group-hover/key:text-foreground transition-colors" />
-              </a>
-            </div>
-          )}
+          
+          <div className="flex items-center gap-3">
+            {isEdit && autoSaveStatus !== "idle" && (
+              <div className="flex items-center gap-1.5 text-xs font-medium transition-opacity">
+                {autoSaveStatus === "saving" && (
+                  <span className="flex items-center gap-1 text-muted-foreground animate-in fade-in duration-150">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                    <span>Saving...</span>
+                  </span>
+                )}
+                {autoSaveStatus === "saved" && (
+                  <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 animate-in fade-in duration-150 font-semibold">
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Saved</span>
+                  </span>
+                )}
+                {autoSaveStatus === "error" && (
+                  <button
+                    type="button"
+                    onClick={() => saveTaskFields()}
+                    className="flex items-center gap-1 text-rose-600 dark:text-rose-400 hover:underline animate-in fade-in duration-150"
+                    title="Click to retry saving"
+                  >
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    <span>Failed to save (retry)</span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {isEdit && editTask?.taskKey && (
+              <div className="flex items-center gap-2">
+                <a
+                  href={`/boards/${boardId}/${editTask.taskKey}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group/key inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border border-border/60 transition-colors shadow-2xs select-none"
+                  title="Open task in dedicated tab"
+                >
+                  <span>{editTask.taskKey}</span>
+                  <ExternalLink className="w-3 h-3 text-muted-foreground group-hover/key:text-foreground transition-colors" />
+                </a>
+              </div>
+            )}
+          </div>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2 w-full max-w-full min-w-0">
@@ -284,7 +452,10 @@ export default function TaskDialog({
             <Input
               id="task-title"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => handleTitleChange(e.target.value)}
+              onBlur={() => {
+                if (isEdit) flushPendingSave();
+              }}
               placeholder="What needs to be done?"
               className="text-sm font-medium h-10 w-full min-w-0"
               autoFocus
@@ -300,7 +471,10 @@ export default function TaskDialog({
             <RichTextEditor
               id="task-desc"
               value={description}
-              onChange={setDescription}
+              onChange={handleDescriptionChange}
+              onBlur={() => {
+                if (isEdit) flushPendingSave();
+              }}
               placeholder="Write description, format with toolbar, or paste screenshots (Ctrl+V)..."
               className="w-full max-w-full min-w-0"
               members={mentionMembers}
@@ -319,7 +493,7 @@ export default function TaskDialog({
               <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Column
               </Label>
-              <Select value={String(columnId)} onValueChange={(v) => setColumnId(Number(v))}>
+              <Select value={String(columnId)} onValueChange={(v) => handleColumnChange(Number(v))}>
                 <SelectTrigger className="h-10">
                   <SelectValue placeholder="Select column" />
                 </SelectTrigger>
@@ -351,7 +525,7 @@ export default function TaskDialog({
                     <button
                       key={opt.value}
                       type="button"
-                      onClick={() => setPriority(opt.value)}
+                      onClick={() => handlePriorityChange(opt.value)}
                       className={cn(
                         "flex items-center justify-center gap-1.5 rounded-md border text-xs font-medium transition-all",
                         isActive
@@ -376,7 +550,7 @@ export default function TaskDialog({
                 Assignee
               </Label>
               {teamMembers.length > 0 ? (
-                <Select value={assigneeId} onValueChange={setAssigneeId}>
+                <Select value={assigneeId} onValueChange={handleAssigneeChange}>
                   <SelectTrigger className="h-10">
                     <SelectValue placeholder="Unassigned" />
                   </SelectTrigger>
@@ -416,13 +590,13 @@ export default function TaskDialog({
                   id="task-due"
                   type="date"
                   value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
+                  onChange={(e) => handleDueDateChange(e.target.value)}
                   className="h-10 text-sm"
                 />
                 {dueDate && (
                   <button
                     type="button"
-                    onClick={() => setDueDate("")}
+                    onClick={() => handleDueDateChange("")}
                     className="absolute right-8 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
                     title="Clear date"
                   >
@@ -466,22 +640,24 @@ export default function TaskDialog({
             </div>
           )}
 
-          <DialogFooter className="pt-3 border-t border-border/50 gap-2 sm:gap-0">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={!title.trim() || isPending}
-              className="font-medium"
-            >
-              {isPending ? "Saving..." : isEdit ? "Save Changes" : "Create Task"}
-            </Button>
-          </DialogFooter>
+          {!isEdit && (
+            <DialogFooter className="pt-3 border-t border-border/50 gap-2 sm:gap-0">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => onOpenChange(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={!title.trim() || isPending}
+                className="font-medium"
+              >
+                {isPending ? "Saving..." : "Create Task"}
+              </Button>
+            </DialogFooter>
+          )}
         </form>
       </DialogContent>
     </Dialog>

@@ -364,6 +364,7 @@ export function stripHtmlPreview(htmlOrText: string | null | undefined): string 
 interface RichTextEditorProps {
   value: string;
   onChange: (value: string) => void;
+  onBlur?: () => void;
   placeholder?: string;
   className?: string;
   id?: string;
@@ -381,6 +382,7 @@ interface MentionState {
 export default function RichTextEditor({
   value,
   onChange,
+  onBlur,
   placeholder = "Write description, notes, or paste screenshots (Ctrl+V)...",
   className,
   members,
@@ -394,6 +396,11 @@ export default function RichTextEditor({
   useEffect(() => {
     membersRef.current = members ?? [];
   }, [members]);
+
+  const onBlurRef = useRef(onBlur);
+  useEffect(() => {
+    onBlurRef.current = onBlur;
+  }, [onBlur]);
 
   const editor = useEditor({
     extensions: [
@@ -618,6 +625,9 @@ export default function RichTextEditor({
     },
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
+    },
+    onBlur: () => {
+      onBlurRef.current?.();
     },
   });
 
