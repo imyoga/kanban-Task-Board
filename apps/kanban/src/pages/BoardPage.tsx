@@ -194,48 +194,118 @@ export default function BoardPage() {
 
   const collisionDetectionStrategy: CollisionDetection = useCallback(
     (args) => {
-      // 1. First, check for pointer collisions directly under cursor (excluding the active item being dragged)
-      const pointerCollisions = pointerWithin(args).filter((c) => c.id !== args.active.id);
+      // 1. Column drag reordering mode
+      if (getColumnFromDndActive(args.active.data.current)) {
+        return closestCorners({
+          ...args,
+          droppableContainers: args.droppableContainers.filter((c) =>
+            String(c.id).startsWith("column-")
+          ),
+        });
+      }
 
-      if (pointerCollisions.length > 0) {
-        // Prioritize task card under pointer over column container background
-        const taskCollision = pointerCollisions.find((c) =>
-          String(c.id).startsWith("task-")
-        );
-        if (taskCollision) {
-          lastOverId.current = taskCollision.id;
-          return [{ id: taskCollision.id }];
-        }
+      // 2. Task card drag mode: determine target column via stable cursor X position
+      const { pointerCoordinates, droppableContainers, active } = args;
+      const validContainers = droppableContainers.filter((c) => c.id !== active.id);
 
-        const columnCollision = pointerCollisions.find((c) =>
+      if (pointerCoordinates) {
+        const columnContainers = validContainers.filter((c) =>
           String(c.id).startsWith("column-")
         );
-        if (columnCollision) {
-          lastOverId.current = columnCollision.id;
-          return [{ id: columnCollision.id }];
+
+        // Find which column container bounds contain pointerCoordinates.x
+        let targetColumnContainer = columnContainers.find((col) => {
+          const rect = col.rect.current;
+          if (!rect) return false;
+          return pointerCoordinates.x >= rect.left && pointerCoordinates.x <= rect.right;
+        });
+
+        // If pointer is between columns or outside, pick nearest column horizontally
+        if (!targetColumnContainer && columnContainers.length > 0) {
+          let minDistance = Infinity;
+          for (const col of columnContainers) {
+            const rect = col.rect.current;
+            if (!rect) continue;
+            const center = rect.left + rect.width / 2;
+            const dist = Math.abs(pointerCoordinates.x - center);
+            if (dist < minDistance) {
+              minDistance = dist;
+              targetColumnContainer = col;
+            }
+          }
         }
 
+        if (targetColumnContainer) {
+          const targetColIdStr = String(targetColumnContainer.id);
+          const targetColId = Number(targetColIdStr.replace("column-", ""));
+
+          const currentTasksList = localTasks ?? tasks;
+          const taskContainersInTargetCol = validContainers.filter((c) => {
+            if (!String(c.id).startsWith("task-")) return false;
+            const taskId = Number(String(c.id).replace("task-", ""));
+            const t = currentTasksList.find((task) => task.id === taskId);
+            return t?.columnId === targetColId;
+          });
+
+          // Check if pointer is over a task card in this column
+          const taskUnderPointer = taskContainersInTargetCol.find((tContainer) => {
+            const rect = tContainer.rect.current;
+            if (!rect) return false;
+            return pointerCoordinates.y >= rect.top && pointerCoordinates.y <= rect.bottom;
+          });
+
+          if (taskUnderPointer) {
+            lastOverId.current = taskUnderPointer.id;
+            return [{ id: taskUnderPointer.id }];
+          }
+
+          // Fallback: pick closest task in target column by Y coordinate
+          if (taskContainersInTargetCol.length > 0) {
+            let minYDist = Infinity;
+            let closestTaskContainer = taskContainersInTargetCol[0];
+
+            for (const tContainer of taskContainersInTargetCol) {
+              const rect = tContainer.rect.current;
+              if (!rect) continue;
+              const centerY = rect.top + rect.height / 2;
+              const dist = Math.abs(pointerCoordinates.y - centerY);
+              if (dist < minYDist) {
+                minYDist = dist;
+                closestTaskContainer = tContainer;
+              }
+            }
+
+            lastOverId.current = closestTaskContainer.id;
+            return [{ id: closestTaskContainer.id }];
+          }
+
+          // Column has no tasks: return column container
+          lastOverId.current = targetColumnContainer.id;
+          return [{ id: targetColumnContainer.id }];
+        }
+      }
+
+      // Fallback for keyboard navigation or missing pointer coordinates
+      const pointerCollisions = pointerWithin({ ...args, droppableContainers: validContainers });
+      if (pointerCollisions.length > 0) {
         lastOverId.current = pointerCollisions[0].id;
         return [{ id: pointerCollisions[0].id }];
       }
 
-      // 2. Fall back to rectIntersection when dragging across gaps between columns
-      const rectCollisions = rectIntersection(args).filter((c) => c.id !== args.active.id);
+      const rectCollisions = rectIntersection({ ...args, droppableContainers: validContainers });
       const overId = getFirstCollision(rectCollisions, "id");
-
       if (overId != null) {
         lastOverId.current = overId;
         return [{ id: overId }];
       }
 
-      // 3. Fallback to last valid container ID to prevent thrashing/flickering
-      if (lastOverId.current && lastOverId.current !== args.active.id) {
+      if (lastOverId.current && lastOverId.current !== active.id) {
         return [{ id: lastOverId.current }];
       }
 
       return [];
     },
-    []
+    [localTasks, tasks]
   );
 
   const getTasksForColumn = useCallback(

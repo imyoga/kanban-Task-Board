@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useState, useMemo } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -117,6 +117,8 @@ function KanbanColumn({ column, boardId, tasks, onAddTask, onEditTask, onDeleteT
 
   const accentColor = column.color ?? "#6366f1";
 
+  const taskIds = useMemo(() => tasks.map((t) => taskDndId(t.id)), [tasks]);
+
   return (
     <div
       ref={setNodeRef}
@@ -234,7 +236,7 @@ function KanbanColumn({ column, boardId, tasks, onAddTask, onEditTask, onDeleteT
 
       {/* Tasks container */}
       <div className="flex-1 px-2.5 pb-2.5 overflow-y-auto max-h-[calc(100svh-260px)] sm:max-h-[calc(100vh-210px)] min-h-[140px] space-y-2">
-        <SortableContext items={tasks.map((t) => taskDndId(t.id))} strategy={verticalListSortingStrategy}>
+        <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
           <div className="space-y-2.5">
             {tasks.map((task) => (
               <TaskCard
