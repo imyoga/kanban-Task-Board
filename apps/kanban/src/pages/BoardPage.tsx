@@ -192,129 +192,82 @@ export default function BoardPage() {
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } })
   );
 
-  const collisionDetectionStrategy: CollisionDetection = useCallback(
-    (args) => {
-      // 1. Column drag reordering mode
-      if (getColumnFromDndActive(args.active.data.current)) {
-        return closestCorners({
-          ...args,
-          droppableContainers: args.droppableContainers.filter((c) =>
-            String(c.id).startsWith("column-")
-          ),
-        });
-      }
-
-      // 2. Task card drag mode: determine target column via stable cursor X position
-      const { pointerCoordinates, droppableContainers, active } = args;
-      const validContainers = droppableContainers.filter((c) => c.id !== active.id);
-
-      if (pointerCoordinates) {
-        const columnContainers = validContainers.filter((c) =>
+  const collisionDetectionStrategy: CollisionDetection = useCallback((args) => {
+    // 1. Column drag reordering mode
+    if (getColumnFromDndActive(args.active.data.current)) {
+      return closestCorners({
+        ...args,
+        droppableContainers: args.droppableContainers.filter((c) =>
           String(c.id).startsWith("column-")
-        );
+        ),
+      });
+    }
 
-        // Find which column container bounds contain pointerCoordinates.x
-        let targetColumnContainer = columnContainers.find((col) => {
-          const rect = col.rect.current;
-          if (!rect) return false;
-          return pointerCoordinates.x >= rect.left && pointerCoordinates.x <= rect.right;
-        });
+    // 2. Task card drag mode
+    // Exclude drag overlay container from collisions to prevent self-collision noise
+    const validContainers = args.droppableContainers.filter(
+      (c) => c.id !== args.active.id
+    );
 
-        // If pointer is between columns or outside, pick nearest column horizontally
-        if (!targetColumnContainer && columnContainers.length > 0) {
-          let minDistance = Infinity;
-          for (const col of columnContainers) {
-            const rect = col.rect.current;
-            if (!rect) continue;
-            const center = rect.left + rect.width / 2;
-            const dist = Math.abs(pointerCoordinates.x - center);
-            if (dist < minDistance) {
-              minDistance = dist;
-              targetColumnContainer = col;
-            }
-          }
-        }
+    // First priority: direct pointer overlap (pointerWithin)
+    const pointerCollisions = pointerWithin({
+      ...args,
+      droppableContainers: validContainers,
+    });
 
-        if (targetColumnContainer) {
-          const targetColIdStr = String(targetColumnContainer.id);
-          const targetColId = Number(targetColIdStr.replace("column-", ""));
+    if (pointerCollisions.length > 0) {
+      // Find if pointer is inside a column or task
+      const columnCollision = pointerCollisions.find((c) =>
+        String(c.id).startsWith("column-")
+      );
+      const taskCollision = pointerCollisions.find((c) =>
+        String(c.id).startsWith("task-")
+      );
 
-          const currentTasksList = localTasks ?? tasks;
-          const taskContainersInTargetCol = validContainers.filter((c) => {
-            if (!String(c.id).startsWith("task-")) return false;
-            const taskId = Number(String(c.id).replace("task-", ""));
-            const t = currentTasksList.find((task) => task.id === taskId);
-            return t?.columnId === targetColId;
-          });
-
-          // Check if pointer is over a task card in this column
-          const taskUnderPointer = taskContainersInTargetCol.find((tContainer) => {
-            const rect = tContainer.rect.current;
-            if (!rect) return false;
-            return pointerCoordinates.y >= rect.top && pointerCoordinates.y <= rect.bottom;
-          });
-
-          if (taskUnderPointer) {
-            lastOverId.current = taskUnderPointer.id;
-            return [{ id: taskUnderPointer.id }];
-          }
-
-          // Fallback: pick closest task in target column by Y coordinate
-          if (taskContainersInTargetCol.length > 0) {
-            let minYDist = Infinity;
-            let closestTaskContainer = taskContainersInTargetCol[0];
-
-            for (const tContainer of taskContainersInTargetCol) {
-              const rect = tContainer.rect.current;
-              if (!rect) continue;
-              const centerY = rect.top + rect.height / 2;
-              const dist = Math.abs(pointerCoordinates.y - centerY);
-              if (dist < minYDist) {
-                minYDist = dist;
-                closestTaskContainer = tContainer;
-              }
-            }
-
-            lastOverId.current = closestTaskContainer.id;
-            return [{ id: closestTaskContainer.id }];
-          }
-
-          // Column has no tasks: return column container
-          lastOverId.current = targetColumnContainer.id;
-          return [{ id: targetColumnContainer.id }];
-        }
+      // If pointer is inside a task, prioritize that task
+      if (taskCollision) {
+        lastOverId.current = taskCollision.id;
+        return [taskCollision];
       }
 
-      // Fallback for keyboard navigation or missing pointer coordinates
-      const pointerCollisions = pointerWithin({ ...args, droppableContainers: validContainers });
-      if (pointerCollisions.length > 0) {
-        lastOverId.current = pointerCollisions[0].id;
-        return [{ id: pointerCollisions[0].id }];
+      // If pointer is inside an empty column (or column area outside cards), return column
+      if (columnCollision) {
+        lastOverId.current = columnCollision.id;
+        return [columnCollision];
       }
 
-      const rectCollisions = rectIntersection({ ...args, droppableContainers: validContainers });
-      const overId = getFirstCollision(rectCollisions, "id");
-      if (overId != null) {
-        lastOverId.current = overId;
-        return [{ id: overId }];
-      }
+      lastOverId.current = pointerCollisions[0].id;
+      return [{ id: pointerCollisions[0].id }];
+    }
 
-      if (lastOverId.current && lastOverId.current !== active.id) {
-        return [{ id: lastOverId.current }];
-      }
+    // Fall back to rectIntersection when dragging across gaps between columns
+    const rectCollisions = rectIntersection({
+      ...args,
+      droppableContainers: validContainers,
+    });
+    const overId = getFirstCollision(rectCollisions, "id");
 
-      return [];
-    },
-    [localTasks, tasks]
-  );
+    if (overId != null) {
+      lastOverId.current = overId;
+      return [{ id: overId }];
+    }
+
+    // Fallback to last valid container ID to prevent thrashing/flickering
+    if (lastOverId.current) {
+      return [{ id: lastOverId.current }];
+    }
+
+    return [];
+  }, []);
 
   const getTasksForColumn = useCallback(
-    (columnId: number) => {
-      return filteredTasks
-        .filter((task) => task.columnId === columnId)
-        .sort((left, right) => left.position - right.position || left.id - right.id);
+    (colId: number) => {
+      const sourceList = localTasks ?? filteredTasks;
+      return sourceList
+        .filter((t) => t.columnId === colId)
+        .sort((a, b) => a.position - b.position || a.id - b.id);
     },
-    [filteredTasks]
+    [localTasks, filteredTasks]
   );
 
   function handleDragStart(event: DragStartEvent) {
@@ -328,7 +281,7 @@ export default function BoardPage() {
 
   function handleDragOver(event: DragOverEvent) {
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
+    if (!over) return;
 
     if (getColumnFromDndActive(active.data.current)) return;
 
@@ -340,15 +293,12 @@ export default function BoardPage() {
     if (!activeTaskItem) return;
 
     const overId = String(over.id);
-    if (overId === String(active.id) || overId === `task-${activeTaskId}`) return;
-
     let targetColumnId: number | undefined;
 
     if (overId.startsWith("column-")) {
       targetColumnId = Number(overId.replace("column-", ""));
     } else if (overId.startsWith("task-")) {
       const overTaskId = Number(overId.replace("task-", ""));
-      if (overTaskId === activeTaskId) return;
       const overTask = currentList.find((t) => t.id === overTaskId);
       targetColumnId = overTask?.columnId;
     }
@@ -370,10 +320,8 @@ export default function BoardPage() {
 
         if (overId.startsWith("task-")) {
           const overTaskId = Number(overId.replace("task-", ""));
-          if (overTaskId !== activeTaskId) {
-            const overIdx = targetColTasks.findIndex((t) => t.id === overTaskId);
-            if (overIdx >= 0) insertIdx = overIdx;
-          }
+          const overIdx = targetColTasks.findIndex((t) => t.id === overTaskId);
+          if (overIdx >= 0) insertIdx = overIdx;
         }
 
         return buildReorderedTasks(base, activeTaskId, targetColumnId, insertIdx);
