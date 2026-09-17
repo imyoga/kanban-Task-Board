@@ -521,30 +521,30 @@ export default function BoardPage() {
   return (
     <>
       {/* Board Header Bar */}
-      <div className="border-b border-border/80 bg-background/95 backdrop-blur-sm px-3 sm:px-6 py-2.5 sm:py-3.5 space-y-2 sm:space-y-3 shrink-0">
+      <div className="border-b border-border/80 bg-background/95 backdrop-blur-sm px-3 sm:px-4 py-2 space-y-1.5 shrink-0">
         {/* ── Top row: title + actions ── */}
-        <div className="flex items-center justify-between gap-2 sm:gap-4">
+        <div className="flex items-center justify-between gap-2 sm:gap-3">
           {/* Board Title & Team Info */}
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
             <div className="min-w-0">
-              <div className="flex items-center gap-1.5 sm:gap-2.5 flex-wrap">
-                <h2 className="text-base sm:text-xl font-bold text-foreground tracking-tight truncate">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                <h2 className="text-sm sm:text-base font-bold text-foreground tracking-tight truncate">
                   {board?.name ?? "Board"}
                 </h2>
                 {boardTeam ? (
                   <Badge
                     variant="secondary"
-                    className="gap-1.5 text-xs font-semibold px-2 py-0.5 bg-primary/10 text-primary border-primary/20"
+                    className="gap-1 text-[11px] font-semibold px-1.5 py-0.2 bg-primary/10 text-primary border-primary/20"
                   >
                     <Users className="w-3 h-3" />
                     {boardTeam.name}
                   </Badge>
                 ) : board?.isShared ? (
-                  <Badge variant="secondary" className="text-xs font-medium">
+                  <Badge variant="secondary" className="text-[11px] font-medium px-1.5 py-0.2">
                     Shared
                   </Badge>
                 ) : (
-                  <Badge variant="outline" className="text-xs text-muted-foreground">
+                  <Badge variant="outline" className="text-[11px] text-muted-foreground px-1.5 py-0.2">
                     Personal
                   </Badge>
                 )}
@@ -553,7 +553,7 @@ export default function BoardPage() {
                   <TooltipTrigger asChild>
                     <div
                       className={cn(
-                        "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors select-none",
+                        "inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[10px] font-medium transition-colors select-none",
                         isConnected
                           ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
                           : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
@@ -575,7 +575,7 @@ export default function BoardPage() {
                   </TooltipContent>
                 </Tooltip>
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5 hidden sm:block">
+              <p className="text-[11px] text-muted-foreground hidden sm:block">
                 {filteredTasks.length} {filteredTasks.length === 1 ? "task" : "tasks"}
                 {hasActiveFilters && ` (filtered from ${tasks.length})`} across{" "}
                 {displayColumns.length} columns
@@ -585,7 +585,7 @@ export default function BoardPage() {
             {/* Live Active Members Avatar Stack — hidden on mobile */}
             {sortedLiveMembers.length > 0 && (
               <div
-                className="hidden sm:flex items-center -space-x-2 ml-2 pl-3 border-l border-border/60"
+                className="hidden sm:flex items-center -space-x-1.5 ml-1.5 pl-2.5 border-l border-border/60"
                 aria-label="Active users on this board"
               >
                 {sortedLiveMembers.slice(0, 5).map((m) => {
@@ -599,7 +599,7 @@ export default function BoardPage() {
                         >
                           <div
                             className={cn(
-                              "w-7 h-7 rounded-full border-2 border-background flex items-center justify-center text-[10px] font-bold shadow-2xs hover:scale-110 hover:z-20 transition-transform select-none",
+                              "w-6 h-6 rounded-full border-2 border-background flex items-center justify-center text-[9px] font-bold shadow-2xs hover:scale-110 hover:z-20 transition-transform select-none",
                               isMe
                                 ? "bg-primary/15 text-primary ring-1 ring-primary/30"
                                 : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500/30"
@@ -609,7 +609,7 @@ export default function BoardPage() {
                           </div>
                           {/* Live presence indicator dot */}
                           <span
-                            className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-background rounded-full ring-1 ring-emerald-600/30"
+                            className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-500 border border-background rounded-full ring-1 ring-emerald-600/30"
                             title="Active now"
                           />
                         </div>
@@ -634,7 +634,7 @@ export default function BoardPage() {
                 {sortedLiveMembers.length > 5 && (
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <div className="w-7 h-7 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[10px] font-bold text-muted-foreground shadow-2xs cursor-default">
+                      <div className="w-6 h-6 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[9px] font-bold text-muted-foreground shadow-2xs cursor-default">
                         +{sortedLiveMembers.length - 5}
                       </div>
                     </TooltipTrigger>
@@ -655,13 +655,13 @@ export default function BoardPage() {
           </div>
 
           {/* Action buttons */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
             {/* Mobile filter toggle */}
             <button
               type="button"
               onClick={() => setFiltersVisible(v => !v)}
               className={cn(
-                "sm:hidden flex items-center gap-1 px-2 h-8 border rounded-lg text-xs font-medium transition-colors shadow-2xs",
+                "sm:hidden flex items-center gap-1 px-2 h-7 border rounded-lg text-xs font-medium transition-colors shadow-2xs",
                 filtersVisible || hasActiveFilters
                   ? "border-primary/50 text-primary bg-primary/5"
                   : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/80"
@@ -677,7 +677,7 @@ export default function BoardPage() {
             {board?.isOwner && (
               <button
                 onClick={() => setSettingsOpen(true)}
-                className="flex items-center gap-1.5 px-2 sm:px-3 h-8 border border-border text-xs font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/80 transition-colors shadow-2xs"
+                className="flex items-center gap-1.5 px-2 sm:px-2.5 h-7 border border-border text-xs font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/80 transition-colors shadow-2xs"
                 aria-label="Board settings"
                 title="Board settings & team linking"
               >
@@ -686,28 +686,28 @@ export default function BoardPage() {
               </button>
             )}
 
-            <NotificationBell className="hidden sm:flex" />
+            <NotificationBell className="hidden sm:flex h-7 w-7 p-1" />
           </div>
         </div>
 
         {/* Filter / Search Bar — always visible on sm+, toggleable on mobile */}
         <div className={cn(
-          "flex items-center gap-2.5 flex-wrap pt-1",
+          "flex items-center gap-2 flex-wrap pt-0.5",
           !filtersVisible && "hidden sm:flex"
         )}>
           {/* Search box */}
-          <div className="relative flex-1 min-w-[160px] max-w-xs">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <div className="relative flex-1 min-w-[140px] max-w-xs">
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search tasks..."
-              className="pl-8 h-8 text-xs bg-muted/30"
+              className="pl-7 h-7 text-xs bg-muted/30"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -719,30 +719,30 @@ export default function BoardPage() {
             value={priorityFilter}
             onValueChange={(v) => setPriorityFilter(v as "all" | "high" | "medium" | "low")}
           >
-            <TabsList className="h-8 bg-muted/70 p-1 border border-border/60">
+            <TabsList className="h-7 bg-muted/70 p-0.5 border border-border/60">
               <TabsTrigger
                 value="all"
-                className="h-6 px-2.5 text-xs font-medium capitalize"
+                className="h-5 px-2 text-[11px] font-medium capitalize"
               >
                 All
               </TabsTrigger>
               <TabsTrigger
                 value="high"
-                className="h-6 px-2.5 text-xs font-medium capitalize flex items-center gap-1.5"
+                className="h-5 px-2 text-[11px] font-medium capitalize flex items-center gap-1"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
                 <span>High</span>
               </TabsTrigger>
               <TabsTrigger
                 value="medium"
-                className="h-6 px-2.5 text-xs font-medium capitalize flex items-center gap-1.5"
+                className="h-5 px-2 text-[11px] font-medium capitalize flex items-center gap-1"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
                 <span>Medium</span>
               </TabsTrigger>
               <TabsTrigger
                 value="low"
-                className="h-6 px-2.5 text-xs font-medium capitalize flex items-center gap-1.5"
+                className="h-5 px-2 text-[11px] font-medium capitalize flex items-center gap-1"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
                 <span>Low</span>
@@ -755,7 +755,7 @@ export default function BoardPage() {
             <select
               value={assigneeFilter}
               onChange={(e) => setAssigneeFilter(e.target.value)}
-              className="h-8 px-2.5 rounded-lg border border-border bg-background text-xs font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              className="h-7 px-2 rounded-lg border border-border bg-background text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             >
               <option value="all">All Assignees</option>
               <option value="unassigned">Unassigned</option>
@@ -775,7 +775,7 @@ export default function BoardPage() {
                 setPriorityFilter("all");
                 setAssigneeFilter("all");
               }}
-              className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-destructive transition-colors px-2 py-1"
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-destructive transition-colors px-1.5 py-0.5"
             >
               <X className="w-3 h-3" />
               Reset
@@ -793,8 +793,8 @@ export default function BoardPage() {
         onDragEnd={handleDragEnd}
         onDragCancel={handleDragCancel}
       >
-        <div className="flex-1 overflow-x-auto px-6 py-5">
-          <div className="flex gap-4 h-full items-start">
+        <div className="flex-1 overflow-x-auto px-3 sm:px-4 py-3">
+          <div className="flex gap-2 sm:gap-2.5 h-full items-start">
             <SortableContext
               items={displayColumns.map((c) => columnDndId(c.id))}
               strategy={horizontalListSortingStrategy}
@@ -815,12 +815,12 @@ export default function BoardPage() {
             {/* Quick new column button */}
             <button
               onClick={() => setAddColumnOpen(true)}
-              className="shrink-0 w-80 h-32 flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border/80 hover:border-primary/50 text-sm font-medium text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all group"
+              className="shrink-0 w-32 sm:w-40 h-20 flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-border/80 hover:border-primary/50 text-xs font-medium text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all group"
             >
-              <div className="w-8 h-8 rounded-full bg-muted group-hover:bg-primary/10 flex items-center justify-center transition-colors">
-                <Plus className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+              <div className="w-6 h-6 rounded-full bg-muted group-hover:bg-primary/10 flex items-center justify-center transition-colors">
+                <Plus className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
               </div>
-              <span>Add New Column</span>
+              <span className="text-[11px]">Add Column</span>
             </button>
           </div>
         </div>
