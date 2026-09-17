@@ -124,19 +124,19 @@ function KanbanColumn({ column, boardId, tasks, onAddTask, onEditTask, onDeleteT
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex flex-col w-[205px] sm:w-[215px] md:w-[220px] xl:w-[235px] 2xl:w-[250px] flex-shrink-0 rounded-xl border border-border/80 bg-muted/40 backdrop-blur-xs transition-all",
+        "flex flex-col w-[225px] sm:w-[235px] md:w-[245px] xl:w-[260px] 2xl:w-[275px] flex-shrink-0 rounded-xl border border-border/80 bg-muted/40 backdrop-blur-xs transition-all",
         isOver && "bg-primary/10 border-primary/40 ring-2 ring-primary/20",
         isDragging && "opacity-40 shadow-2xl scale-[0.98] ring-2 ring-primary/40"
       )}
     >
       {/* Column top color bar */}
       <div
-        className="h-1 w-full rounded-t-xl transition-colors"
+        className="h-1.5 w-full rounded-t-xl transition-colors"
         style={{ backgroundColor: accentColor }}
       />
 
       {/* Column header */}
-      <div className="flex items-center justify-between gap-1.5 px-2.5 pt-2 pb-1.5">
+      <div className="flex items-center justify-between gap-1.5 px-3 pt-2.5 pb-2">
         <div className="flex items-center gap-1.5 flex-1 min-w-0">
           <button
             {...attributes}
@@ -144,12 +144,12 @@ function KanbanColumn({ column, boardId, tasks, onAddTask, onEditTask, onDeleteT
             className="p-0.5 -ml-0.5 text-muted-foreground/40 hover:text-foreground cursor-grab active:cursor-grabbing rounded transition-colors"
             aria-label="Drag column"
           >
-            <GripVertical className="w-3 h-3" />
+            <GripVertical className="w-3.5 h-3.5" />
           </button>
 
           {editingTitle ? (
             <Input
-              className="h-6 text-xs font-semibold py-0 px-1 border-primary shadow-xs bg-background focus-visible:ring-1"
+              className="h-7 text-sm font-semibold py-0 px-1.5 border-primary shadow-xs bg-background focus-visible:ring-1"
               value={titleValue}
               onChange={(e) => setTitleValue(e.target.value)}
               onBlur={handleRenameSubmit}
@@ -164,7 +164,7 @@ function KanbanColumn({ column, boardId, tasks, onAddTask, onEditTask, onDeleteT
             />
           ) : (
             <h3
-              className="font-semibold text-xs sm:text-sm text-foreground truncate cursor-pointer hover:text-primary transition-colors flex-1"
+              className="font-semibold text-sm text-foreground truncate cursor-pointer hover:text-primary transition-colors flex-1"
               onDoubleClick={() => setEditingTitle(true)}
               title="Double click to rename"
             >
@@ -172,7 +172,7 @@ function KanbanColumn({ column, boardId, tasks, onAddTask, onEditTask, onDeleteT
             </h3>
           )}
 
-          <span className="text-[10px] font-semibold text-muted-foreground bg-background/80 border border-border/60 rounded-full px-1.5 py-0.2 shadow-2xs">
+          <span className="text-xs font-semibold text-muted-foreground bg-background/80 border border-border/60 rounded-full px-2 py-0.5 shadow-2xs">
             {tasks.length}
           </span>
         </div>
@@ -181,7 +181,7 @@ function KanbanColumn({ column, boardId, tasks, onAddTask, onEditTask, onDeleteT
           <button
             type="button"
             onClick={() => onAddTask(column.id)}
-            className="p-0.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-background/80 transition-colors"
+            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-background/80 transition-colors"
             title="Add task to column"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -189,7 +189,7 @@ function KanbanColumn({ column, boardId, tasks, onAddTask, onEditTask, onDeleteT
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="p-0.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-background/80 transition-colors">
+              <button className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-background/80 transition-colors">
                 <MoreHorizontal className="w-3.5 h-3.5" />
               </button>
             </DropdownMenuTrigger>
@@ -235,9 +235,9 @@ function KanbanColumn({ column, boardId, tasks, onAddTask, onEditTask, onDeleteT
       </div>
 
       {/* Tasks container */}
-      <div className="flex-1 px-1.5 pb-1.5 overflow-y-auto max-h-[calc(100svh-200px)] sm:max-h-[calc(100vh-165px)] min-h-[100px] space-y-1.5">
+      <div className="flex-1 px-2 pb-2 overflow-y-auto max-h-[calc(100svh-210px)] sm:max-h-[calc(100vh-175px)] min-h-[110px] space-y-2">
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             {tasks.map((task) => (
               <TaskCard
                 key={task.id}
@@ -254,9 +254,9 @@ function KanbanColumn({ column, boardId, tasks, onAddTask, onEditTask, onDeleteT
           <button
             type="button"
             onClick={() => onAddTask(column.id)}
-            className="w-full flex flex-col items-center justify-center h-20 text-[11px] text-muted-foreground/60 hover:text-foreground border-2 border-dashed border-border/80 hover:border-primary/40 rounded-lg transition-all group"
+            className="w-full flex flex-col items-center justify-center h-24 text-xs text-muted-foreground/60 hover:text-foreground border-2 border-dashed border-border/80 hover:border-primary/40 rounded-xl transition-all group"
           >
-            <Plus className="w-3.5 h-3.5 mb-0.5 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+            <Plus className="w-4 h-4 mb-1 text-muted-foreground/40 group-hover:text-primary transition-colors" />
             <span>Drop tasks or click to add</span>
           </button>
         )}
@@ -264,13 +264,13 @@ function KanbanColumn({ column, boardId, tasks, onAddTask, onEditTask, onDeleteT
 
       {/* Add task footer */}
       {tasks.length > 0 && (
-        <div className="px-1.5 pb-1.5">
+        <div className="px-2 pb-2">
           <button
             type="button"
             onClick={() => onAddTask(column.id)}
-            className="w-full flex items-center justify-center gap-1 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-background/80 border border-transparent hover:border-border/60 rounded-lg transition-all"
+            className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-background/80 border border-transparent hover:border-border/60 rounded-xl transition-all"
           >
-            <Plus className="w-3 h-3" />
+            <Plus className="w-3.5 h-3.5" />
             <span>Add task</span>
           </button>
         </div>

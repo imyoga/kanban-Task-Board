@@ -95,23 +95,23 @@ function TaskCard({ task, boardId, onEdit, onDelete }: Props) {
       {...listeners}
       onClick={() => onEdit(task)}
       className={cn(
-        "group relative bg-card rounded-lg p-2 sm:p-2.5 border border-border/80 shadow-2xs cursor-pointer select-none",
-        "border-l-[3px] transition-all duration-150 hover:shadow-xs hover:border-primary/40",
+        "group relative bg-card rounded-xl p-3 border border-border/80 shadow-2xs cursor-pointer select-none",
+        "border-l-[3px] transition-all duration-150 hover:shadow-sm hover:border-primary/40",
         priorityStyle.border,
         isDragging && "opacity-20 shadow-xl scale-[0.98] ring-2 ring-primary/40"
       )}
     >
       <div className="flex items-start justify-between gap-1.5">
-        <div className="flex items-center gap-1 min-w-0 flex-1">
+        <div className="flex items-center gap-1.5 min-w-0 flex-1">
           <div
             className="p-0.5 -ml-1 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors rounded"
             aria-label="Drag handle"
           >
-            <GripVertical className="w-3 h-3" />
+            <GripVertical className="w-3.5 h-3.5" />
           </div>
 
           <div className="flex-1 min-w-0">
-            <h4 className="text-xs sm:text-[13px] font-medium text-foreground leading-snug break-words">
+            <h4 className="text-sm font-semibold text-foreground leading-snug break-words">
               {task.title}
             </h4>
           </div>
@@ -128,10 +128,10 @@ function TaskCard({ task, boardId, onEdit, onDelete }: Props) {
               e.stopPropagation();
               onEdit(task);
             }}
-            className="p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
+            className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
             title="Edit task"
           >
-            <Pencil className="w-3 h-3" />
+            <Pencil className="w-3.5 h-3.5" />
           </button>
           <button
             type="button"
@@ -139,23 +139,23 @@ function TaskCard({ task, boardId, onEdit, onDelete }: Props) {
               e.stopPropagation();
               onDelete(task.id);
             }}
-            className="p-0.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
+            className="p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
             title="Delete task"
           >
-            <Trash2 className="w-3 h-3" />
+            <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
       {task.description && (
-        <p className="text-[11px] text-muted-foreground mt-1 leading-normal line-clamp-2 pl-2">
+        <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed line-clamp-2 pl-2.5">
           {stripHtmlPreview(task.description)}
         </p>
       )}
 
-      <div className="mt-1.5 pt-1.5 border-t border-border/40 flex items-center justify-between gap-1 min-w-0">
+      <div className="mt-2 pt-2 border-t border-border/40 flex items-center justify-between gap-1.5 min-w-0">
         {/* Left: Task Key & Priority */}
-        <div className="flex items-center gap-1 min-w-0 flex-wrap">
+        <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
           {task.taskKey && (
             <a
               href={`/boards/${boardId}/${task.taskKey}`}
@@ -163,31 +163,31 @@ function TaskCard({ task, boardId, onEdit, onDelete }: Props) {
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
               onPointerDown={(e) => e.stopPropagation()}
-              className="group/key inline-flex items-center gap-0.5 text-[9px] font-mono font-bold text-muted-foreground/80 hover:text-foreground bg-muted/70 hover:bg-muted px-1 py-0.2 rounded uppercase tracking-wider transition-colors cursor-pointer border border-transparent hover:border-border/60 shrink-0"
+              className="group/key inline-flex items-center gap-0.5 text-[10px] font-mono font-bold text-muted-foreground/80 hover:text-foreground bg-muted/70 hover:bg-muted px-1.5 py-0.5 rounded uppercase tracking-wider transition-colors cursor-pointer border border-transparent hover:border-border/60 shrink-0"
               title="Open task in new tab"
             >
               <span>{task.taskKey}</span>
-              <ExternalLink className="w-2 h-2 opacity-40 group-hover/key:opacity-100 transition-opacity" />
+              <ExternalLink className="w-2.5 h-2.5 opacity-40 group-hover/key:opacity-100 transition-opacity" />
             </a>
           )}
 
           <span
             className={cn(
-              "inline-flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.2 rounded-full border shrink-0",
+              "inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full border shrink-0",
               priorityStyle.badge
             )}
           >
-            <span className={cn("w-1 h-1 rounded-full", priorityStyle.dot)} />
+            <span className={cn("w-1.5 h-1.5 rounded-full", priorityStyle.dot)} />
             {priorityStyle.label}
           </span>
         </div>
 
         {/* Right: Due Date & Assignee */}
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           {dueStatus && (
             <span
               className={cn(
-                "inline-flex items-center gap-0.5 text-[9px] font-medium px-1 py-0.2 rounded shrink-0",
+                "inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0",
                 dueStatus.isOverdue
                   ? "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/40 font-semibold"
                   : dueStatus.isToday
@@ -196,9 +196,9 @@ function TaskCard({ task, boardId, onEdit, onDelete }: Props) {
               )}
             >
               {dueStatus.isOverdue ? (
-                <AlertCircle className="w-2.5 h-2.5 text-red-500" />
+                <AlertCircle className="w-3 h-3 text-red-500" />
               ) : (
-                <Calendar className="w-2.5 h-2.5" />
+                <Calendar className="w-3 h-3" />
               )}
               <span>{dueStatus.label}</span>
             </span>
@@ -208,7 +208,7 @@ function TaskCard({ task, boardId, onEdit, onDelete }: Props) {
             <Tooltip>
               <TooltipTrigger asChild>
                 <div
-                  className="w-4.5 h-4.5 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center text-[8px] font-bold tracking-tight shrink-0 shadow-2xs hover:scale-105 transition-transform"
+                  className="w-5 h-5 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center text-[9px] font-bold tracking-tight shrink-0 shadow-2xs hover:scale-105 transition-transform"
                   aria-label={userDisplayName(assignee)}
                 >
                   {userInitials(assignee)}
@@ -233,18 +233,18 @@ export function TaskCardPreview({ task }: { task: Task }) {
   return (
     <div
       className={cn(
-        "group relative bg-card rounded-lg p-2.5 border border-border/80 shadow-2xl select-none w-56 sm:w-60 pointer-events-none",
+        "group relative bg-card rounded-xl p-3 border border-border/80 shadow-2xl select-none w-60 sm:w-64 pointer-events-none",
         "border-l-[3px] rotate-1 scale-102 ring-2 ring-primary/40",
         priorityStyle.border
       )}
     >
       <div className="flex items-start justify-between gap-1.5">
-        <div className="flex items-center gap-1 min-w-0 flex-1">
+        <div className="flex items-center gap-1.5 min-w-0 flex-1">
           <div className="p-0.5 -ml-1 text-muted-foreground/40 rounded">
-            <GripVertical className="w-3 h-3" />
+            <GripVertical className="w-3.5 h-3.5" />
           </div>
           <div className="flex-1 min-w-0">
-            <h4 className="text-xs sm:text-[13px] font-medium text-foreground leading-snug break-words">
+            <h4 className="text-sm font-semibold text-foreground leading-snug break-words">
               {task.title}
             </h4>
           </div>
@@ -252,37 +252,37 @@ export function TaskCardPreview({ task }: { task: Task }) {
       </div>
 
       {task.description && (
-        <p className="text-[11px] text-muted-foreground mt-1 leading-normal line-clamp-2 pl-2">
+        <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed line-clamp-2 pl-2.5">
           {stripHtmlPreview(task.description)}
         </p>
       )}
 
-      <div className="mt-1.5 pt-1.5 border-t border-border/40 flex items-center justify-between gap-1 min-w-0">
+      <div className="mt-2 pt-2 border-t border-border/40 flex items-center justify-between gap-1.5 min-w-0">
         {/* Left: Task Key & Priority */}
-        <div className="flex items-center gap-1 min-w-0 flex-wrap">
+        <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
           {task.taskKey && (
-            <span className="inline-flex items-center gap-0.5 text-[9px] font-mono font-bold text-muted-foreground/80 bg-muted/70 px-1 py-0.2 rounded uppercase tracking-wider shrink-0">
+            <span className="inline-flex items-center gap-0.5 text-[10px] font-mono font-bold text-muted-foreground/80 bg-muted/70 px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">
               {task.taskKey}
             </span>
           )}
 
           <span
             className={cn(
-              "inline-flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.2 rounded-full border shrink-0",
+              "inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full border shrink-0",
               priorityStyle.badge
             )}
           >
-            <span className={cn("w-1 h-1 rounded-full", priorityStyle.dot)} />
+            <span className={cn("w-1.5 h-1.5 rounded-full", priorityStyle.dot)} />
             {priorityStyle.label}
           </span>
         </div>
 
         {/* Right: Due Date & Assignee */}
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           {dueStatus && (
             <span
               className={cn(
-                "inline-flex items-center gap-0.5 text-[9px] font-medium px-1 py-0.2 rounded shrink-0",
+                "inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0",
                 dueStatus.isOverdue
                   ? "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/40 font-semibold"
                   : dueStatus.isToday
@@ -291,16 +291,16 @@ export function TaskCardPreview({ task }: { task: Task }) {
               )}
             >
               {dueStatus.isOverdue ? (
-                <AlertCircle className="w-2.5 h-2.5 text-red-500" />
+                <AlertCircle className="w-3 h-3 text-red-500" />
               ) : (
-                <Calendar className="w-2.5 h-2.5" />
+                <Calendar className="w-3 h-3" />
               )}
               <span>{dueStatus.label}</span>
             </span>
           )}
 
           {assignee && (
-            <div className="w-4.5 h-4.5 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center text-[8px] font-bold tracking-tight shrink-0 shadow-2xs">
+            <div className="w-5 h-5 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center text-[9px] font-bold tracking-tight shrink-0 shadow-2xs">
               {userInitials(assignee)}
             </div>
           )}
