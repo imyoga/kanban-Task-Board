@@ -236,7 +236,9 @@ router.post("/tasks", async (req, res) => {
   const pos = position ?? existing.length;
 
   const [maxTask] = await db
-    .select({ maxNum: sql<number>`COALESCE(MAX(${tasksTable.taskNumber}), 0)` })
+    .select({
+      maxNum: sql<number>`COALESCE(MAX(COALESCE(${tasksTable.taskNumber}, ${tasksTable.id})), 0)`,
+    })
     .from(tasksTable)
     .where(eq(tasksTable.boardId, boardId));
   const nextNumber = Number(maxTask?.maxNum ?? 0) + 1;
