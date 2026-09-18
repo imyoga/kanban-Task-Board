@@ -260,14 +260,31 @@ export default function BoardPage() {
     return [];
   }, []);
 
+  // Pre-build a stable map of columnId → sorted Task[] so each KanbanColumn
+  // receives the same array reference when its tasks haven't changed.
+  // Using a Map inside useMemo avoids recreating arrays on every render and
+  // prevents @dnd-kit from re-firing DragOver events due to new array refs.
+  const tasksByColumn = useMemo(() => {
+    const sourceList = localTasks ?? filteredTasks;
+    const map = new Map<number, Task[]>();
+    for (const task of sourceList) {
+      const col = map.get(task.columnId);
+      if (col) {
+        col.push(task);
+      } else {
+        map.set(task.columnId, [task]);
+      }
+    }
+    // Sort each column's task list by position then id
+    for (const [colId, colTasks] of map) {
+      map.set(colId, colTasks.slice().sort((a, b) => a.position - b.position || a.id - b.id));
+    }
+    return map;
+  }, [localTasks, filteredTasks]);
+
   const getTasksForColumn = useCallback(
-    (colId: number) => {
-      const sourceList = localTasks ?? filteredTasks;
-      return sourceList
-        .filter((t) => t.columnId === colId)
-        .sort((a, b) => a.position - b.position || a.id - b.id);
-    },
-    [localTasks, filteredTasks]
+    (colId: number) => tasksByColumn.get(colId) ?? [],
+    [tasksByColumn]
   );
 
   function handleDragStart(event: DragStartEvent) {

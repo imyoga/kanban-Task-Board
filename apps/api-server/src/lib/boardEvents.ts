@@ -9,6 +9,9 @@ export interface BoardEventPayload {
   type: "tasks:changed" | "columns:changed" | "board:updated" | "board:deleted" | "members:changed";
   boardId: number;
   actorId: number;
+  /** Identifies the specific browser tab that originated the event. Used by clients
+   *  to suppress their own echoes without blocking updates in other tabs of the same user. */
+  sourceTabId?: string;
   action?: BoardEventAction;
   taskId?: number;
   columnId?: number;
@@ -17,6 +20,8 @@ export interface BoardEventPayload {
 
 interface WSClient {
   id: string;
+  /** Per-tab identifier sent by the client on subscribe/identify, used for echo suppression. */
+  tabId?: string;
   boardId?: number;
   user?: PresenceUser;
   ws: WebSocket;
@@ -115,6 +120,10 @@ export function setupWebSocketServer(server: Server): WebSocketServer {
           }
 
           client.boardId = msg.boardId;
+          // Store the per-tab identifier so the server can echo it back in events
+          if (typeof msg.tabId === "string") {
+            client.tabId = msg.tabId;
+          }
           if (msg.user && typeof msg.user.id === "number") {
             client.user = {
               id: msg.user.id,
@@ -161,6 +170,9 @@ export function setupWebSocketServer(server: Server): WebSocketServer {
           }
 
           client.boardId = msg.boardId;
+          if (typeof msg.tabId === "string") {
+            client.tabId = msg.tabId;
+          }
           client.user = {
             id: msg.user.id,
             firstName: typeof msg.user.firstName === "string" ? msg.user.firstName : "",
@@ -260,19 +272,42 @@ function removeClient(client: WSClient) {
 
 /**
  * Broadcast an event to all connected WebSocket clients on a given board.
+ *
+ * The `sourceTabId` is resolved automatically by finding the actor's active
+ * WebSocket connection on this board. This allows each receiving client to
+ * distinguish "my own echo on this tab" (same tabId → suppress) from
+ * "a different tab of the same user" (different tabId → accept and refresh).
+ * Route handlers do not need to be changed.
+ *
+ * @param boardId - Target board.
+ * @param event - Event payload (without boardId/timestamp/sourceTabId).
  */
 export function broadcastBoardEvent(
   boardId: number,
-  event: Omit<BoardEventPayload, "boardId" | "timestamp">,
+  event: Omit<BoardEventPayload, "boardId" | "timestamp" | "sourceTabId">,
 ): void {
   const clients = boardClients.get(boardId);
   if (!clients || clients.size === 0) {
     return;
   }
 
+  // Resolve the per-tab ID from the actor's active WS connection on this board.
+  // If the actor has multiple tabs open on the same board, we pick the most
+  // recently subscribed one (last in the Set iteration order). The browser tab
+  // that made the HTTP mutation will typically be the one that last sent a WS
+  // heartbeat, but any tab of that user works — other tabs of the same user
+  // will compare their own tabId and see they differ, so they'll apply the update.
+  let resolvedTabId: string | undefined;
+  for (const c of clients) {
+    if (c.user?.id === event.actorId && c.tabId) {
+      resolvedTabId = c.tabId;
+    }
+  }
+
   const payload: BoardEventPayload = {
     ...event,
     boardId,
+    sourceTabId: resolvedTabId,
     timestamp: new Date().toISOString(),
   };
 

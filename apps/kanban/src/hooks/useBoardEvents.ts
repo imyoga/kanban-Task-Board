@@ -22,6 +22,8 @@ export interface BoardEvent {
   type: "tasks:changed" | "columns:changed" | "board:updated" | "board:deleted" | "members:changed";
   boardId: number;
   actorId: number;
+  /** Tab-level echo suppression token: only suppress if this matches our own tabId. */
+  sourceTabId?: string;
   action?: "create" | "update" | "delete" | "move";
   taskId?: number;
   columnId?: number;
@@ -71,6 +73,13 @@ export function useBoardEvents({
   const isInteractingRef = useRef(isInteracting);
   isInteractingRef.current = isInteracting;
 
+  // Stable per-tab identifier. Generated once on mount and never changes.
+  // Sent to the server on subscribe so events from this tab can be suppressed
+  // while events from other tabs of the same user are correctly accepted.
+  const tabIdRef = useRef<string>(
+    Math.random().toString(36).slice(2, 10) + Date.now().toString(36)
+  );
+
   const onRemoteEventRef = useRef(onRemoteEvent);
   onRemoteEventRef.current = onRemoteEvent;
 
@@ -116,6 +125,7 @@ export function useBoardEvents({
         JSON.stringify({
           type: "identify",
           boardId,
+          tabId: tabIdRef.current,
           user: {
             id: me.id,
             firstName: me.firstName,
@@ -152,6 +162,7 @@ export function useBoardEvents({
           const subscribePayload = {
             type: "subscribe",
             boardId,
+            tabId: tabIdRef.current,
             user: meRef.current
               ? {
                   id: meRef.current.id,
@@ -184,9 +195,15 @@ export function useBoardEvents({
 
             const payload: BoardEvent = data;
 
-            // Echo suppression: Ignore events triggered by the current user
-            // (the current user already has optimistic updates and mutation callbacks)
-            if (meIdRef.current && payload.actorId === meIdRef.current) {
+            // Echo suppression: only ignore events that originated from THIS
+            // specific browser tab. Events from OTHER tabs of the same user
+            // (same actorId, different sourceTabId) must still be applied so
+            // both tabs stay in sync.
+            if (
+              meIdRef.current &&
+              payload.actorId === meIdRef.current &&
+              payload.sourceTabId === tabIdRef.current
+            ) {
               return;
             }
 
