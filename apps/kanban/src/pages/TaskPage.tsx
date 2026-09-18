@@ -17,6 +17,7 @@ import {
 } from "@workspace/api-client-react";
 import type { Task, Column } from "@workspace/api-client-react";
 import { useBoardIdFromRoute, useTaskKeyFromRoute } from "@/hooks/useBoardId";
+import { useBoardEvents } from "@/hooks/useBoardEvents";
 import { useToast } from "@/hooks/use-toast";
 import { userDisplayName, userInitials } from "@/hooks/useAuth";
 import type { MentionMember } from "@/components/MentionSuggestionList";
@@ -126,6 +127,13 @@ export default function TaskPage() {
 
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
+
+  const isInteracting = isEditingTitle || hasDescChanged;
+  useBoardEvents({
+    boardId: boardId ?? undefined,
+    isInteracting,
+    enabled: !!boardId,
+  });
 
   const isLoading = isBoardsLoading || isColumnsLoading || isTasksLoading;
 

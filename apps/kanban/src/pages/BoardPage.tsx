@@ -107,8 +107,8 @@ export default function BoardPage() {
   const lastOverId = useRef<string | number | null>(null);
 
   // Real-time synchronization via WebSocket
-  // Incoming remote updates are buffered while the user is actively dragging or has modals open
-  const isInteracting = activeTask !== null || taskDialogOpen || addColumnOpen || settingsOpen;
+  // Incoming remote updates are buffered while the user is actively dragging
+  const isInteracting = activeTask !== null;
   const { isConnected, activeUsers } = useBoardEvents({
     boardId,
     isInteracting,

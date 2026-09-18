@@ -2,6 +2,7 @@ import { useGetTaskStats, useListColumns } from "@workspace/api-client-react";
 import { Loader2, AlertCircle, CheckCircle2, ListTodo, BarChart3, TrendingUp, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBoardIdFromRoute } from "@/hooks/useBoardId";
+import { useBoardEvents } from "@/hooks/useBoardEvents";
 import NotificationBell from "@/components/NotificationBell";
 
 const PRIORITY_COLORS = {
@@ -14,6 +15,8 @@ export default function StatsPage() {
   const boardId = useBoardIdFromRoute()!;
   const { data: stats, isLoading } = useGetTaskStats({ boardId });
   const { data: columns = [] } = useListColumns({ boardId });
+
+  useBoardEvents({ boardId });
 
   if (isLoading) {
     return (
