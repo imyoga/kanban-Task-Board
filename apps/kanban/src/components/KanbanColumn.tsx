@@ -40,10 +40,7 @@ const PRESET_COLORS = [
 ];
 
 function KanbanColumn({ column, boardId, tasks, onAddTask, onEditTask, onDeleteTask }: Props) {
-  // Freeze the column data reference for useSortable during active drag.
-  // Same React 19 + @dnd-kit issue as TaskCard: if `data` changes mid-drag
-  // @dnd-kit calls setState synchronously, causing an infinite render loop.
-  const frozenColDataRef = useRef<{ type: string; column: Column }>({ type: "column", column });
+  const colData = useMemo(() => ({ type: "column" as const, column }), [column]);
 
   const {
     attributes,
@@ -55,13 +52,8 @@ function KanbanColumn({ column, boardId, tasks, onAddTask, onEditTask, onDeleteT
     isOver,
   } = useSortable({
     id: columnDndId(column.id),
-    data: frozenColDataRef.current,
+    data: colData,
   });
-
-  // Keep the snapshot current only when not dragging.
-  if (!isDragging) {
-    frozenColDataRef.current = { type: "column", column };
-  }
 
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(column.title);

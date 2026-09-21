@@ -96,8 +96,6 @@ export default function BoardPage() {
   const deleteTask = useDeleteTask();
 
   const [activeTask, setActiveTask] = useState<Task | null>(null);
-  const [localTasks, setLocalTasks] = useState<Task[] | null>(null);
-  const [localColumns, setLocalColumns] = useState<Column[] | null>(null);
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
   const [addColumnOpen, setAddColumnOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -146,15 +144,14 @@ export default function BoardPage() {
   const [priorityFilter, setPriorityFilter] = useState<"all" | "high" | "medium" | "low">("all");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
 
-  const baseTasks = localTasks ?? tasks;
   const displayColumns = useMemo(
-    () => [...(localColumns ?? columns)].sort((a, b) => a.position - b.position),
-    [localColumns, columns]
+    () => [...columns].sort((a, b) => a.position - b.position),
+    [columns]
   );
 
   // Apply filters
   const filteredTasks = useMemo(() => {
-    return baseTasks.filter((task) => {
+    return tasks.filter((task) => {
       // Text search
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -182,7 +179,7 @@ export default function BoardPage() {
 
       return true;
     });
-  }, [baseTasks, searchQuery, priorityFilter, assigneeFilter]);
+  }, [tasks, searchQuery, priorityFilter, assigneeFilter]);
 
   const hasActiveFilters =
     searchQuery.trim() !== "" || priorityFilter !== "all" || assigneeFilter !== "all";
@@ -204,7 +201,7 @@ export default function BoardPage() {
     }
 
     // 2. Task card drag mode
-    // Exclude drag overlay container from collisions to prevent self-collision noise
+    // Exclude active draggable container from collisions to prevent self-collision noise
     const validContainers = args.droppableContainers.filter(
       (c) => c.id !== args.active.id
     );
@@ -217,11 +214,11 @@ export default function BoardPage() {
 
     if (pointerCollisions.length > 0) {
       // Find if pointer is inside a column or task
-      const columnCollision = pointerCollisions.find((c) =>
-        String(c.id).startsWith("column-")
-      );
       const taskCollision = pointerCollisions.find((c) =>
         String(c.id).startsWith("task-")
+      );
+      const columnCollision = pointerCollisions.find((c) =>
+        String(c.id).startsWith("column-")
       );
 
       // If pointer is inside a task, prioritize that task
@@ -252,7 +249,17 @@ export default function BoardPage() {
       return [{ id: overId }];
     }
 
-    // Fallback to last valid container ID to prevent thrashing/flickering
+    // Fallback to closestCorners
+    const closestCollisions = closestCorners({
+      ...args,
+      droppableContainers: validContainers,
+    });
+    const closestId = getFirstCollision(closestCollisions, "id");
+    if (closestId != null) {
+      lastOverId.current = closestId;
+      return [{ id: closestId }];
+    }
+
     if (lastOverId.current) {
       return [{ id: lastOverId.current }];
     }
@@ -262,12 +269,9 @@ export default function BoardPage() {
 
   // Pre-build a stable map of columnId → sorted Task[] so each KanbanColumn
   // receives the same array reference when its tasks haven't changed.
-  // Using a Map inside useMemo avoids recreating arrays on every render and
-  // prevents @dnd-kit from re-firing DragOver events due to new array refs.
   const tasksByColumn = useMemo(() => {
-    const sourceList = localTasks ?? filteredTasks;
     const map = new Map<number, Task[]>();
-    for (const task of sourceList) {
+    for (const task of filteredTasks) {
       const col = map.get(task.columnId);
       if (col) {
         col.push(task);
@@ -280,7 +284,7 @@ export default function BoardPage() {
       map.set(colId, colTasks.slice().sort((a, b) => a.position - b.position || a.id - b.id));
     }
     return map;
-  }, [localTasks, filteredTasks]);
+  }, [filteredTasks]);
 
   const getTasksForColumn = useCallback(
     (colId: number) => tasksByColumn.get(colId) ?? [],
@@ -296,61 +300,16 @@ export default function BoardPage() {
     }
   }
 
-  function handleDragOver(event: DragOverEvent) {
-    const { active, over } = event;
-    if (!over) return;
-
-    if (getColumnFromDndActive(active.data.current)) return;
-
-    const activeTaskId = Number(String(active.id).replace("task-", ""));
-    if (!activeTaskId || isNaN(activeTaskId)) return;
-
-    const currentList = localTasks ?? tasks;
-    const activeTaskItem = currentList.find((t) => t.id === activeTaskId);
-    if (!activeTaskItem) return;
-
-    const overId = String(over.id);
-    let targetColumnId: number | undefined;
-
-    if (overId.startsWith("column-")) {
-      targetColumnId = Number(overId.replace("column-", ""));
-    } else if (overId.startsWith("task-")) {
-      const overTaskId = Number(overId.replace("task-", ""));
-      const overTask = currentList.find((t) => t.id === overTaskId);
-      targetColumnId = overTask?.columnId;
-    }
-
-    if (targetColumnId === undefined) return;
-
-    // ONLY update localTasks if moving across different columns!
-    // (SortableContext handles intra-column animation smoothly without state thrashing)
-    if (activeTaskItem.columnId !== targetColumnId) {
-      setLocalTasks((prev) => {
-        const base = prev ?? tasks;
-        const moving = base.find((t) => t.id === activeTaskId);
-        if (!moving || moving.columnId === targetColumnId) return prev;
-
-        const targetColTasks = base.filter(
-          (t) => t.columnId === targetColumnId && t.id !== activeTaskId
-        );
-        let insertIdx = targetColTasks.length;
-
-        if (overId.startsWith("task-")) {
-          const overTaskId = Number(overId.replace("task-", ""));
-          const overIdx = targetColTasks.findIndex((t) => t.id === overTaskId);
-          if (overIdx >= 0) insertIdx = overIdx;
-        }
-
-        return buildReorderedTasks(base, activeTaskId, targetColumnId, insertIdx);
-      });
-    }
+  function handleDragOver(_event: DragOverEvent) {
+    // No state mutation during drag-over!
+    // Eliminating setLocalTasks in onDragOver prevents any concurrent React 19
+    // render cascading or component unmounting mid-drag, completely eliminating
+    // React Error #185 ("Maximum update depth exceeded").
   }
 
   function handleDragCancel(_event: DragCancelEvent) {
     lastOverId.current = null;
     setActiveTask(null);
-    setLocalTasks(null);
-    setLocalColumns(null);
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -359,8 +318,6 @@ export default function BoardPage() {
     setActiveTask(null);
 
     if (!over) {
-      setLocalTasks(null);
-      setLocalColumns(null);
       return;
     }
 
@@ -373,7 +330,6 @@ export default function BoardPage() {
       const newIndex = overColumn ? sorted.findIndex((c) => c.id === overColumn.id) : oldIndex;
 
       if (oldIndex === newIndex || newIndex < 0) {
-        setLocalColumns(null);
         return;
       }
 
@@ -381,7 +337,6 @@ export default function BoardPage() {
         ...c,
         position: i,
       }));
-      setLocalColumns(reordered);
 
       const changed = reordered.filter((c) => {
         const orig = columns.find((o) => o.id === c.id);
@@ -389,12 +344,10 @@ export default function BoardPage() {
       });
 
       if (changed.length === 0) {
-        setLocalColumns(null);
         return;
       }
 
       qc.setQueryData(getListColumnsQueryKey({ boardId }), reordered);
-      setLocalColumns(null);
 
       for (const col of changed) {
         updateColumn.mutate(
@@ -413,14 +366,11 @@ export default function BoardPage() {
     // Task reordering
     const activeTaskId = Number(String(active.id).replace("task-", ""));
     if (!activeTaskId || isNaN(activeTaskId)) {
-      setLocalTasks(null);
       return;
     }
 
-    const currentTasks = localTasks ?? tasks;
-    const currentMovingTask = currentTasks.find((t) => t.id === activeTaskId);
+    const currentMovingTask = tasks.find((t) => t.id === activeTaskId);
     if (!currentMovingTask) {
-      setLocalTasks(null);
       return;
     }
 
@@ -430,16 +380,16 @@ export default function BoardPage() {
 
     if (overId.startsWith("column-")) {
       targetColumnId = Number(overId.replace("column-", ""));
-      const colTasks = currentTasks.filter(
+      const colTasks = tasks.filter(
         (t) => t.columnId === targetColumnId && t.id !== activeTaskId
       );
       targetIndex = colTasks.length;
     } else if (overId.startsWith("task-")) {
       const overTaskId = Number(overId.replace("task-", ""));
-      const overTask = currentTasks.find((t) => t.id === overTaskId);
+      const overTask = tasks.find((t) => t.id === overTaskId);
       if (overTask) {
         targetColumnId = overTask.columnId;
-        const colTasks = currentTasks
+        const colTasks = tasks
           .filter((t) => t.columnId === targetColumnId)
           .sort((a, b) => a.position - b.position || a.id - b.id);
 
@@ -456,8 +406,16 @@ export default function BoardPage() {
       }
     }
 
+    // If task didn't change column or position, do nothing
+    if (
+      currentMovingTask.columnId === targetColumnId &&
+      currentMovingTask.position === targetIndex
+    ) {
+      return;
+    }
+
     const nextTasks = buildReorderedTasks(
-      currentTasks,
+      tasks,
       activeTaskId,
       targetColumnId,
       targetIndex
@@ -465,7 +423,6 @@ export default function BoardPage() {
 
     // Optimistically update React Query cache for instant visual feedback
     qc.setQueryData(getListTasksQueryKey({ boardId }), nextTasks);
-    setLocalTasks(null);
 
     updateTask.mutate(
       { id: activeTaskId, data: { columnId: targetColumnId, position: targetIndex } },

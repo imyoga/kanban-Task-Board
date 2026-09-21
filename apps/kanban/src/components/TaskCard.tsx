@@ -1,4 +1,4 @@
-import { memo, useRef } from "react";
+import { memo, useMemo } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Calendar, GripVertical, Trash2, Pencil, AlertCircle, Clock, CheckCircle2, ExternalLink } from "lucide-react";
@@ -73,27 +73,12 @@ function getDueDateStatus(dueDateStr: string | null | undefined): {
 }
 
 function TaskCard({ task, boardId, onEdit, onDelete }: Props) {
-  // Snapshot of the task frozen at drag-start.
-  // @dnd-kit/sortable v8 + React 19: when the `data` prop of useSortable changes
-  // during an active drag (e.g. task.columnId flips because setLocalTasks fired
-  // in DragOver), @dnd-kit calls setState synchronously inside SortableContext's
-  // droppable registry. React 19's concurrent renderer treats this as a
-  // setState-during-render loop and crashes with "Maximum update depth exceeded".
-  // Keeping the data ref frozen for the duration of the drag prevents the
-  // synchronous setState entirely.
-  const frozenDndDataRef = useRef<{ type: string; task: Task }>({ type: "task", task });
+  const dndData = useMemo(() => ({ type: "task" as const, task }), [task]);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: taskDndId(task.id),
-    data: frozenDndDataRef.current,
+    data: dndData,
   });
-
-  // Update the frozen snapshot only when NOT dragging.
-  // This keeps the ref current for the next drag gesture while preventing
-  // @dnd-kit from seeing data changes mid-drag.
-  if (!isDragging) {
-    frozenDndDataRef.current = { type: "task", task };
-  }
 
   const style = {
     transform: isDragging ? undefined : CSS.Transform.toString(transform),
