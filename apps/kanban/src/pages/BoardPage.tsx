@@ -380,10 +380,16 @@ export default function BoardPage() {
 
     if (overId.startsWith("column-")) {
       targetColumnId = Number(overId.replace("column-", ""));
-      const colTasks = tasks.filter(
-        (t) => t.columnId === targetColumnId && t.id !== activeTaskId
-      );
-      targetIndex = colTasks.length;
+      if (targetColumnId === currentMovingTask.columnId) {
+        // Dropped back on the same column's droppable area — keep original position
+        targetIndex = currentMovingTask.position;
+      } else {
+        // Cross-column drop onto the column container — append to end
+        const colTasks = tasks.filter(
+          (t) => t.columnId === targetColumnId && t.id !== activeTaskId
+        );
+        targetIndex = colTasks.length;
+      }
     } else if (overId.startsWith("task-")) {
       const overTaskId = Number(overId.replace("task-", ""));
       const overTask = tasks.find((t) => t.id === overTaskId);
