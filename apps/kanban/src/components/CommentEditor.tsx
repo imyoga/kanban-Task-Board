@@ -29,6 +29,33 @@ interface MentionState {
   selectedIndex: number;
 }
 
+function checkInitialEmpty(content?: string): boolean {
+  if (!content) return true;
+  if (content.includes("mention") || content.includes("<img")) return false;
+  const stripped = content.replace(/<[^>]*>/g, "").trim();
+  return stripped.length === 0;
+}
+
+function isEditorEmpty(ed: any): boolean {
+  if (!ed) return true;
+  const text = ed.getText().trim();
+  if (text.length > 0) return false;
+
+  let hasNode = false;
+  try {
+    ed.state.doc.descendants((node: any) => {
+      if (node.type.name === "mention" || node.type.name === "image") {
+        hasNode = true;
+        return false;
+      }
+      return undefined;
+    });
+  } catch (e) {
+    // fallback if doc isn't available
+  }
+  return !hasNode;
+}
+
 export default function CommentEditor({
   initialContent = "",
   placeholder = "Add a comment...",
@@ -40,13 +67,20 @@ export default function CommentEditor({
   autoFocus = false,
   className,
 }: CommentEditorProps) {
+  const [isEmpty, setIsEmpty] = useState(() => checkInitialEmpty(initialContent));
   const [mentionState, setMentionState] = useState<MentionState | null>(null);
   const editorRef = useRef<any>(null);
   const membersRef = useRef<MentionMember[]>(members);
+  const onCancelRef = useRef(onCancel);
+  const handleSubmitRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     membersRef.current = members;
   }, [members]);
+
+  useEffect(() => {
+    onCancelRef.current = onCancel;
+  }, [onCancel]);
 
   const editor = useEditor({
     extensions: [
@@ -198,21 +232,27 @@ export default function CommentEditor({
         class:
           "prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[64px] max-h-[220px] overflow-y-auto px-3 py-2 text-sm text-foreground [overflow-wrap:anywhere] [word-break:break-word] w-full",
       },
-      handleKeyDown: (view, event) => {
+      handleKeyDown: (_view, event) => {
         if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
           event.preventDefault();
-          handleSubmit();
+          handleSubmitRef.current?.();
           return true;
         }
-        if (event.key === "Escape" && onCancel) {
+        if (event.key === "Escape" && onCancelRef.current) {
           event.preventDefault();
-          onCancel();
+          onCancelRef.current();
           return true;
         }
         return false;
       },
     },
     autofocus: autoFocus,
+    onCreate: ({ editor }) => {
+      setIsEmpty(isEditorEmpty(editor));
+    },
+    onUpdate: ({ editor }) => {
+      setIsEmpty(isEditorEmpty(editor));
+    },
   });
 
   editorRef.current = editor;
@@ -220,19 +260,21 @@ export default function CommentEditor({
   // Sync content when initialContent changes (e.g. starting edit)
   useEffect(() => {
     if (editor && initialContent !== editor.getHTML()) {
-      editor.commands.setContent(initialContent || "", { emitUpdate: false });
+      editor.commands.setContent(initialContent || "", { emitUpdate: true });
+      setIsEmpty(isEditorEmpty(editor));
     }
   }, [initialContent, editor]);
 
   const handleSubmit = useCallback(() => {
     if (!editor || isSubmitting) return;
-    const text = editor.getText().trim();
-    if (!text) return;
+    if (isEditorEmpty(editor)) return;
     const html = editor.getHTML();
     onSubmit(html);
   }, [editor, isSubmitting, onSubmit]);
 
-  const isEmpty = !editor || !editor.getText().trim();
+  useEffect(() => {
+    handleSubmitRef.current = handleSubmit;
+  }, [handleSubmit]);
 
   return (
     <div
