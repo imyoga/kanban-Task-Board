@@ -203,3 +203,39 @@
   max-width: 100%;
   height: auto;
 }
+
+/* ── Rich Text Editor: compact typography ──────────────────────────────────
+   Override @tailwindcss/typography (prose-sm) defaults inside the editor:
+   - Horizontal rule: reduce the excessive 3em top/bottom margin to 0.75em
+   - Paragraphs & list items: tighten line-height from 1.714 → 1.5
+   - Preserve word-wrap overrides already set above
+   ─────────────────────────────────────────────────────────────────────── */
+.ProseMirror.prose hr,
+.ProseMirror hr {
+  margin-top: 0.75em;
+  margin-bottom: 0.75em;
+}
+
+.ProseMirror.prose p,
+.ProseMirror p {
+  line-height: 1.5;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.ProseMirror.prose li,
+.ProseMirror li {
+  line-height: 1.5;
+  margin-top: 0.15em;
+  margin-bottom: 0.15em;
+}
+
+.ProseMirror.prose > :first-child,
+.ProseMirror > :first-child {
+  margin-top: 0;
+}
+
+.ProseMirror.prose > :last-child,
+.ProseMirror > :last-child {
+  margin-bottom: 0;
+}
