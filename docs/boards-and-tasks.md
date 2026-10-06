@@ -147,8 +147,9 @@ Tasks support file attachments up to a configurable maximum size (default: **100
 Existing tasks in the task modal feature two tabs at the bottom: **Comments** and **History**:
 
 ### Comments Tab
-- **Jira-Style Editor**: Quick-expand comment box with author initials avatar, multi-line textarea, `Ctrl+Enter` submit shortcut, and Cancel/Save buttons.
-- **Comment Thread**: Displays author avatar, name, relative time, and an `(edited)` indicator if updated.
+- **Distraction-Free Rich Text Editor**: Quick-expand TipTap editor with clean interface (no formatting toolbar buttons). Supports rich text formatting via standard shortcuts (`Ctrl+B`, `Ctrl+I`, `Ctrl+U`, lists, code blocks, blockquotes), user mentions (`@name`), screenshot clipboard pasting (`Ctrl+V`), and drag-and-drop image uploads.
+- **Embedded Image Sizing & Lightbox**: Embedded images support interactive `[S] [M] [L]` size adjustments in the editor, image removal, and full-screen lightbox zoom in both editor and comment thread. Images are optimized and compressed before submission.
+- **Comment Thread**: Displays author avatar, name, relative time, formatted rich content (images, lists, mentions, code blocks), and an `(edited)` indicator if updated.
 - **Author Controls**: Authors (and board owners) can edit their comments inline or delete them with an inline confirmation prompt.
 
 ### History (Audit Trail) Tab

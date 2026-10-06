@@ -4,9 +4,14 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Mention from "@tiptap/extension-mention";
+import LinkExtension from "@tiptap/extension-link";
+import UnderlineExtension from "@tiptap/extension-underline";
+import TaskListExtension from "@tiptap/extension-task-list";
+import TaskItemExtension from "@tiptap/extension-task-item";
 import MentionSuggestionList, { type MentionMember } from "./MentionSuggestionList";
+import { CustomImage, processImageFile, optimizeDescriptionImages } from "./RichTextEditor";
 import { Button } from "@/components/ui/button";
-import { Loader2, Send } from "lucide-react";
+import { Loader2, Send, Image as ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface CommentEditorProps {
@@ -68,8 +73,10 @@ export default function CommentEditor({
   className,
 }: CommentEditorProps) {
   const [isEmpty, setIsEmpty] = useState(() => checkInitialEmpty(initialContent));
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [mentionState, setMentionState] = useState<MentionState | null>(null);
   const editorRef = useRef<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const membersRef = useRef<MentionMember[]>(members);
   const onCancelRef = useRef(onCancel);
   const handleSubmitRef = useRef<() => void>(() => {});
@@ -85,13 +92,33 @@ export default function CommentEditor({
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        heading: false,
-        codeBlock: false,
-        blockquote: false,
-        horizontalRule: false,
+        heading: {
+          levels: [1, 2, 3],
+        },
+        codeBlock: {
+          HTMLAttributes: {
+            class: "rounded-lg bg-zinc-950 text-zinc-100 p-3 my-2 font-mono text-xs overflow-x-auto",
+          },
+        },
+      }),
+      UnderlineExtension,
+      TaskListExtension,
+      TaskItemExtension.configure({
+        nested: true,
+      }),
+      LinkExtension.configure({
+        openOnClick: false,
+        HTMLAttributes: {
+          class: "text-primary underline underline-offset-2 hover:text-primary/80 font-medium",
+          target: "_blank",
+          rel: "noopener noreferrer",
+        },
       }),
       Placeholder.configure({
         placeholder,
+      }),
+      CustomImage.configure({
+        allowBase64: true,
       }),
       Mention.configure({
         HTMLAttributes: {
@@ -230,7 +257,72 @@ export default function CommentEditor({
     editorProps: {
       attributes: {
         class:
-          "prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[64px] max-h-[220px] overflow-y-auto px-3 py-2 text-sm text-foreground [overflow-wrap:anywhere] [word-break:break-word] w-full",
+          "prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[72px] max-h-[380px] overflow-y-auto overflow-x-hidden px-3 py-2 text-sm text-foreground [overflow-wrap:anywhere] [word-break:break-word] w-full",
+      },
+      handlePaste: (_view, event) => {
+        const items = event.clipboardData?.items;
+        if (!items) return false;
+
+        const imageFiles: File[] = [];
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].type.indexOf("image") !== -1) {
+            const file = items[i].getAsFile();
+            if (file) imageFiles.push(file);
+          }
+        }
+
+        if (imageFiles.length > 0) {
+          event.preventDefault();
+          setIsUploadingImage(true);
+          (async () => {
+            try {
+              for (const file of imageFiles) {
+                const dataUrl = await processImageFile(file);
+                editorRef.current?.commands.setImage({
+                  src: dataUrl,
+                  alt: file.name || "screenshot",
+                  // @ts-ignore
+                  size: "M",
+                });
+              }
+            } catch (err) {
+              console.error("Error inserting pasted image:", err);
+            } finally {
+              setIsUploadingImage(false);
+            }
+          })();
+          return true;
+        }
+        return false;
+      },
+      handleDrop: (_view, event) => {
+        const files = event.dataTransfer?.files;
+        if (files && files.length > 0) {
+          const imageFiles = Array.from(files).filter((f) => f.type.startsWith("image/"));
+          if (imageFiles.length > 0) {
+            event.preventDefault();
+            setIsUploadingImage(true);
+            (async () => {
+              try {
+                for (const file of imageFiles) {
+                  const dataUrl = await processImageFile(file);
+                  editorRef.current?.commands.setImage({
+                    src: dataUrl,
+                    alt: file.name || "uploaded image",
+                    // @ts-ignore
+                    size: "M",
+                  });
+                }
+              } catch (err) {
+                console.error("Error inserting dropped image:", err);
+              } finally {
+                setIsUploadingImage(false);
+              }
+            })();
+            return true;
+          }
+        }
+        return false;
       },
       handleKeyDown: (_view, event) => {
         if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
@@ -265,12 +357,42 @@ export default function CommentEditor({
     }
   }, [initialContent, editor]);
 
-  const handleSubmit = useCallback(() => {
-    if (!editor || isSubmitting) return;
+  const handleFileUpload = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (!files || files.length === 0 || !editor) return;
+
+      setIsUploadingImage(true);
+      try {
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          if (file.type.startsWith("image/")) {
+            const dataUrl = await processImageFile(file);
+            editor.commands.setImage({
+              src: dataUrl,
+              alt: file.name || "image",
+              // @ts-ignore
+              size: "M",
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Failed to upload image:", err);
+      } finally {
+        setIsUploadingImage(false);
+        e.target.value = "";
+      }
+    },
+    [editor],
+  );
+
+  const handleSubmit = useCallback(async () => {
+    if (!editor || isSubmitting || isUploadingImage) return;
     if (isEditorEmpty(editor)) return;
-    const html = editor.getHTML();
+    let html = editor.getHTML();
+    html = await optimizeDescriptionImages(html);
     onSubmit(html);
-  }, [editor, isSubmitting, onSubmit]);
+  }, [editor, isSubmitting, isUploadingImage, onSubmit]);
 
   useEffect(() => {
     handleSubmitRef.current = handleSubmit;
@@ -283,6 +405,16 @@ export default function CommentEditor({
         className,
       )}
     >
+      {/* Hidden File Input for Image Upload */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={handleFileUpload}
+      />
+
       <div className="relative min-w-0">
         <EditorContent editor={editor} className="cursor-text" />
 
@@ -319,34 +451,57 @@ export default function CommentEditor({
           )}
       </div>
 
-      {/* Action Footer */}
-      <div className="flex items-center justify-end gap-2 px-3 py-2 bg-muted/20 border-t border-border/40">
-        {onCancel && (
+      {/* Action Footer without formatting buttons */}
+      <div className="flex items-center justify-between gap-2 px-3 py-2 bg-muted/20 border-t border-border/40">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isSubmitting || isUploadingImage}
+            className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+            title="Attach image (or paste / drag & drop)"
+          >
+            <ImageIcon className="w-4 h-4" />
+          </button>
+          {isUploadingImage ? (
+            <span className="flex items-center gap-1.5 text-[11px] text-primary font-medium">
+              <Loader2 className="w-3 h-3 animate-spin" /> Processing image...
+            </span>
+          ) : (
+            <span className="text-[11px] text-muted-foreground/75 truncate hidden sm:inline">
+              Paste or drop images • Ctrl+Enter to send
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          {onCancel && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onCancel}
+              disabled={isSubmitting || isUploadingImage}
+              className="h-8 text-xs"
+            >
+              Cancel
+            </Button>
+          )}
           <Button
             type="button"
-            variant="ghost"
             size="sm"
-            onClick={onCancel}
-            disabled={isSubmitting}
-            className="h-8 text-xs"
+            onClick={handleSubmit}
+            disabled={isEmpty || isSubmitting || isUploadingImage}
+            className="h-8 text-xs font-medium gap-1.5"
           >
-            Cancel
+            {isSubmitting ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Send className="w-3.5 h-3.5" />
+            )}
+            {submitLabel}
           </Button>
-        )}
-        <Button
-          type="button"
-          size="sm"
-          onClick={handleSubmit}
-          disabled={isEmpty || isSubmitting}
-          className="h-8 text-xs font-medium gap-1.5"
-        >
-          {isSubmitting ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          ) : (
-            <Send className="w-3.5 h-3.5" />
-          )}
-          {submitLabel}
-        </Button>
+        </div>
       </div>
     </div>
   );

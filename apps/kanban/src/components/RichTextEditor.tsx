@@ -318,7 +318,7 @@ function ResizableImageNodeView(props: any) {
 }
 
 // Custom Image Extension with S/M/L attribute & base64 support
-const CustomImage = ImageExtension.extend({
+export const CustomImage = ImageExtension.extend({
   parseHTML() {
     return [
       {

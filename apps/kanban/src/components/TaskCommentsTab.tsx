@@ -23,14 +23,24 @@ interface Props {
   members?: MentionMember[];
 }
 
-function renderCommentContent(content: string) {
+function renderCommentContent(
+  content: string,
+  onImageClick?: (src: string, alt?: string) => void,
+) {
   if (!content) return null;
 
   // If HTML format (e.g. from TipTap CommentEditor)
   if (/<[a-z][\s\S]*>/i.test(content)) {
     return (
       <div
-        className="prose prose-sm dark:prose-invert max-w-none [&_p]:my-0.5 [&_p]:leading-relaxed text-sm text-foreground/90 break-words"
+        className="prose prose-sm dark:prose-invert max-w-none [&_p]:my-0.5 [&_p]:leading-relaxed text-sm text-foreground/90 break-words [&_img]:rounded-lg [&_img]:my-2 [&_img]:border [&_img]:border-border/80 [&_img]:bg-muted/20 [&_img]:cursor-zoom-in [&_img]:transition-all hover:[&_img]:border-primary/60 hover:[&_img]:shadow-md [&_img[data-size='S']]:max-w-[220px] [&_img[data-size='S']]:max-h-[220px] [&_img[data-size='M']]:max-w-[460px] [&_img[data-size='M']]:max-h-[460px] [&_img[data-size='L']]:max-w-full [&_img]:object-contain [&_img]:block [&_pre]:rounded-lg [&_pre]:bg-zinc-950 [&_pre]:text-zinc-100 [&_pre]:p-3 [&_pre]:my-2 [&_pre]:font-mono [&_pre]:text-xs [&_pre]:overflow-x-auto [&_ul[data-type='taskList']]:list-none [&_ul[data-type='taskList']]:p-0 [&_ul[data-type='taskList']_li]:flex [&_ul[data-type='taskList']_li]:items-start [&_ul[data-type='taskList']_li]:gap-2 [&_.mention-badge]:inline-flex [&_.mention-badge]:items-center [&_.mention-badge]:font-semibold [&_.mention-badge]:text-primary [&_.mention-badge]:bg-primary/10 [&_.mention-badge]:border [&_.mention-badge]:border-primary/20 [&_.mention-badge]:px-1.5 [&_.mention-badge]:py-0.5 [&_.mention-badge]:rounded-md [&_.mention-badge]:text-xs [&_.mention-badge]:select-none [&_.mention-badge]:mx-0.5"
+        onClick={(e) => {
+          const target = e.target as HTMLElement;
+          if (target && target.tagName.toLowerCase() === "img") {
+            const img = target as HTMLImageElement;
+            onImageClick?.(img.src, img.alt);
+          }
+        }}
         dangerouslySetInnerHTML={{ __html: content }}
       />
     );
@@ -77,6 +87,16 @@ export default function TaskCommentsTab({ taskId, boardId, activeTab, members = 
   const [isEditorExpanded, setIsEditorExpanded] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [deletingCommentId, setDeletingCommentId] = useState<number | null>(null);
+  const [lightboxImg, setLightboxImg] = useState<{ src: string; alt?: string } | null>(null);
+
+  useEffect(() => {
+    if (!lightboxImg) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setLightboxImg(null);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [lightboxImg]);
 
   const {
     data: comments = [],
@@ -331,13 +351,42 @@ export default function TaskCommentsTab({ taskId, boardId, activeTab, members = 
                     </div>
                   ) : (
                     <div className="mt-1">
-                      {renderCommentContent(comment.content)}
+                      {renderCommentContent(comment.content, (src, alt) =>
+                        setLightboxImg({ src, alt }),
+                      )}
                     </div>
                   )}
                 </div>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Fullscreen Lightbox for Comment Images */}
+      {lightboxImg && (
+        <div
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in"
+          onClick={() => setLightboxImg(null)}
+        >
+          <div
+            className="relative max-w-5xl max-h-[90vh] flex flex-col items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={lightboxImg.src}
+              alt={lightboxImg.alt || "comment image"}
+              className="max-h-[82vh] max-w-full rounded-lg object-contain shadow-2xl border border-white/10"
+            />
+            <button
+              type="button"
+              onClick={() => setLightboxImg(null)}
+              className="absolute -top-3 -right-3 p-1.5 rounded-full bg-zinc-800 text-zinc-200 hover:bg-zinc-700 hover:text-white shadow-lg transition-transform hover:scale-110"
+              title="Close (Esc)"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       )}
     </div>

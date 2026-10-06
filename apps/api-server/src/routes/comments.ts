@@ -26,6 +26,16 @@ function serializeAuthor(user: UserRow | null | undefined) {
   };
 }
 
+function formatCommentActivityPreview(raw: string): string {
+  const clean = raw
+    .replace(/<img[^>]*>/gi, "[Image] ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/@\[([^\]]+)\]\((\d+)\)/g, "@$1")
+    .replace(/\s+/g, " ")
+    .trim();
+  return clean.slice(0, 100);
+}
+
 function serializeComment(
   c: typeof taskCommentsTable.$inferSelect,
   author?: UserRow | null,
@@ -134,7 +144,7 @@ router.post("/tasks/:id/comments", async (req, res) => {
     userId,
     action: "comment_added",
     field: "comment",
-    newValue: content.slice(0, 100),
+    newValue: formatCommentActivityPreview(content),
     message: "Added a comment",
   });
 
@@ -221,7 +231,7 @@ router.patch("/tasks/:id/comments/:commentId", async (req, res) => {
     userId,
     action: "comment_edited",
     field: "comment",
-    newValue: content.slice(0, 100),
+    newValue: formatCommentActivityPreview(content),
     message: "Edited a comment",
   });
 

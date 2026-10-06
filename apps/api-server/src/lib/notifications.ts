@@ -26,6 +26,7 @@ interface CreateMentionNotificationsOptions {
  */
 function cleanSnippet(raw: string, maxLength = 180): string {
   const stripped = raw
+    .replace(/<img[^>]*>/gi, "[Image] ")
     .replace(/<[^>]+>/g, " ")
     .replace(/@\[([^\]]+)\]\((\d+)\)/g, "@$1")
     .replace(/\s+/g, " ")
