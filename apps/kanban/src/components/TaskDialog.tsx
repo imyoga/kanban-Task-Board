@@ -432,6 +432,8 @@ export default function TaskDialog({
                   href={`/boards/${boardId}/${editTask.taskKey}`}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
                   className="group/key inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground border border-border/60 transition-colors shadow-2xs select-none"
                   title="Open task in dedicated tab"
                 >

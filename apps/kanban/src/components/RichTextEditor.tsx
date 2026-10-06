@@ -228,7 +228,11 @@ function ResizableImageNodeView(props: any) {
           src={src}
           alt={alt}
           className={cn("rounded-lg object-contain cursor-pointer block", sizeClasses)}
-          onClick={() => setIsLightboxOpen(true)}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsLightboxOpen(true);
+          }}
           loading="lazy"
         />
 

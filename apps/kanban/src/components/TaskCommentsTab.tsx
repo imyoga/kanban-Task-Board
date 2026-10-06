@@ -38,6 +38,8 @@ function renderCommentContent(
         onClick={(e) => {
           const target = e.target as HTMLElement;
           if (target && target.tagName.toLowerCase() === "img") {
+            e.preventDefault();
+            e.stopPropagation();
             const img = target as HTMLImageElement;
             onImageClick?.(img.src, img.alt);
           }
