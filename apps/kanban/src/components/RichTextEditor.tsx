@@ -10,6 +10,7 @@ import TaskListExtension from "@tiptap/extension-task-list";
 import TaskItemExtension from "@tiptap/extension-task-item";
 import Mention from "@tiptap/extension-mention";
 import MentionSuggestionList, { type MentionMember } from "./MentionSuggestionList";
+import ImageLightboxModal from "./ImageLightboxModal";
 import {
   Bold,
   Italic,
@@ -288,31 +289,12 @@ function ResizableImageNodeView(props: any) {
       </div>
 
       {/* Fullscreen Lightbox Modal */}
-      {isLightboxOpen && (
-        <div
-          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in"
-          onClick={() => setIsLightboxOpen(false)}
-        >
-          <div
-            className="relative max-w-5xl max-h-[90vh] flex flex-col items-center"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <img
-              src={src}
-              alt={alt}
-              className="max-h-[82vh] max-w-full rounded-lg object-contain shadow-2xl border border-white/10"
-            />
-            <button
-              type="button"
-              onClick={() => setIsLightboxOpen(false)}
-              className="absolute -top-3 -right-3 p-1.5 rounded-full bg-zinc-800 text-zinc-200 hover:bg-zinc-700 hover:text-white shadow-lg transition-transform hover:scale-110"
-              title="Close (Esc)"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-      )}
+      <ImageLightboxModal
+        isOpen={isLightboxOpen}
+        src={src}
+        alt={alt}
+        onClose={() => setIsLightboxOpen(false)}
+      />
     </NodeViewWrapper>
   );
 }

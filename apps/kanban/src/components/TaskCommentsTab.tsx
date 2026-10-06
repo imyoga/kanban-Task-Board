@@ -15,6 +15,7 @@ import { formatRelativeTime, formatExactDateTime } from "@/lib/dateUtils";
 import { MessageSquare, Edit2, Trash2, Check, X, Loader2 } from "lucide-react";
 import type { MentionMember } from "./MentionSuggestionList";
 import CommentEditor from "./CommentEditor";
+import ImageLightboxModal from "./ImageLightboxModal";
 
 interface Props {
   taskId: number;
@@ -88,15 +89,6 @@ export default function TaskCommentsTab({ taskId, boardId, activeTab, members = 
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [deletingCommentId, setDeletingCommentId] = useState<number | null>(null);
   const [lightboxImg, setLightboxImg] = useState<{ src: string; alt?: string } | null>(null);
-
-  useEffect(() => {
-    if (!lightboxImg) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setLightboxImg(null);
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [lightboxImg]);
 
   const {
     data: comments = [],
@@ -364,31 +356,12 @@ export default function TaskCommentsTab({ taskId, boardId, activeTab, members = 
       )}
 
       {/* Fullscreen Lightbox for Comment Images */}
-      {lightboxImg && (
-        <div
-          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in"
-          onClick={() => setLightboxImg(null)}
-        >
-          <div
-            className="relative max-w-5xl max-h-[90vh] flex flex-col items-center"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <img
-              src={lightboxImg.src}
-              alt={lightboxImg.alt || "comment image"}
-              className="max-h-[82vh] max-w-full rounded-lg object-contain shadow-2xl border border-white/10"
-            />
-            <button
-              type="button"
-              onClick={() => setLightboxImg(null)}
-              className="absolute -top-3 -right-3 p-1.5 rounded-full bg-zinc-800 text-zinc-200 hover:bg-zinc-700 hover:text-white shadow-lg transition-transform hover:scale-110"
-              title="Close (Esc)"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-      )}
+      <ImageLightboxModal
+        isOpen={Boolean(lightboxImg)}
+        src={lightboxImg?.src || ""}
+        alt={lightboxImg?.alt}
+        onClose={() => setLightboxImg(null)}
+      />
     </div>
   );
 }
